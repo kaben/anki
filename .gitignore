@@ -10,3 +10,6 @@ target
 /windows.bazelrc
 /out
 node_modules
+
+# Ignore Vim swapfiles.
+*.sw?
