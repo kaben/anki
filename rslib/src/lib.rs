@@ -14,6 +14,7 @@ pub mod config;
 pub mod dbcheck;
 pub mod deckconfig;
 pub mod decks;
+pub mod detailed_feedback;
 pub mod error;
 pub mod findreplace;
 pub mod i18n;

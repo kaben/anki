@@ -242,9 +242,13 @@ class AnkiExporter(Exporter):
         mids = self.dst.db.list("select distinct mid from notes where id in " + strnids)
         # card history and revlog
         if self.includeSched:
-            data = self.src.db.all("select * from revlog where cid in " + ids2str(cids))
+            data = self.src.db.all(
+                "select id,cid,usn,ease,ivl,lastIvl,factor,time,type from revlog where cid in "
+                + ids2str(cids)
+            )
             self.dst.db.executemany(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)", data
+                "insert into revlog (id,cid,usn,ease,ivl,lastIvl,factor,time,type) values (?,?,?,?,?,?,?,?,?)",
+                data,
             )
         else:
             # need to reset card state

@@ -40,6 +40,22 @@ impl SqliteStorage {
                 .execute_batch(include_str!("schema18_upgrade.sql"))?;
         }
 
+        // Below are calls to support a version of Anki for detailed review feedback.
+        //
+        // The methods below are defined in detailed_feedback/storage/upgrades/mod.rs:
+        // - table_has_column()
+        // - run_schema_extended_version_upgrade()
+        // - db_extended_version()
+        // - run_schema_202212011756()
+        //
+        if !self.table_has_column("col", "extended_version")? {
+            self.run_schema_extended_version_upgrade()?;
+        }
+        let extended_version: u64 = self.db_extended_version()?;
+        if extended_version < 202212011756 {
+            self.run_schema_202212011756_upgrade()?;
+        }
+
         // in some future schema upgrade, we may want to change
         // _collapsed to _expanded in DeckCommon and invert existing values, so
         // that we can avoid serializing the values in the default case, and use
