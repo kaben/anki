@@ -143,6 +143,12 @@ impl Backend {
                 pb::ServiceIndex::ImportExport => {
                     ImportExportService::run_method(self, method, input)
                 }
+
+                // The Revlog service has been added to support a version of Anki for detailed
+                // review feedback.
+                pb::ServiceIndex::Revlog => {
+                    pb::revlog_service::Service::run_method(self, method, input)
+                }
             })
             .map_err(|err| {
                 let backend_err = err.into_protobuf(&self.tr);
@@ -164,7 +170,7 @@ impl Backend {
     /// If collection is open, run the provided closure while holding
     /// the mutex.
     /// If collection is not open, return an error.
-    fn with_col<F, T>(&self, func: F) -> Result<T>
+    pub fn with_col<F, T>(&self, func: F) -> Result<T>
     where
         F: FnOnce(&mut Collection) -> Result<T>,
     {

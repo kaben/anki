@@ -18,6 +18,7 @@ import I18n = anki.i18n;
 import ImportExport = anki.import_export;
 import Notes = anki.notes;
 import Notetypes = anki.notetypes;
+import Revlog = anki.revlog;
 import Scheduler = anki.scheduler;
 import Stats = anki.stats;
 import Tags = anki.tags;
@@ -72,6 +73,9 @@ export const importExport = ImportExport.ImportExportService.create(
 
 export { Notetypes };
 export const notetypes = Notetypes.NotetypesService.create(serviceCallback as RPCImpl);
+
+export { Revlog };
+export const revlog = Revlog.RevlogService.create(serviceCallback as RPCImpl);
 
 export { Scheduler };
 export const scheduler = Scheduler.SchedulerService.create(serviceCallback as RPCImpl);

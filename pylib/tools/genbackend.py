@@ -24,6 +24,10 @@ import anki.links_pb2
 import anki.media_pb2
 import anki.notes_pb2
 import anki.notetypes_pb2
+
+# The Revlog service has been added to support a version of Anki for detailed
+# review feedback.
+import anki.revlog_pb2
 import anki.scheduler_pb2
 import anki.search_pb2
 import anki.stats_pb2
@@ -187,6 +191,9 @@ service_modules = dict(
     MEDIA=anki.media_pb2,
     LINKS=anki.links_pb2,
     IMPORT_EXPORT=anki.import_export_pb2,
+    # The Revlog service has been added to support a version of Anki for
+    # detailed review feedback.
+    REVLOG=anki.revlog_pb2,
 )
 
 for service in anki.backend_pb2.ServiceIndex.DESCRIPTOR.values:
@@ -236,6 +243,7 @@ import anki.card_rendering_pb2
 import anki.tags_pb2
 import anki.media_pb2
 import anki.import_export_pb2
+import anki.revlog_pb2
 
 class RustBackendGenerated:
     def _run_command(self, service: int, method: int, input: Any) -> bytes:

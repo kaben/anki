@@ -50,6 +50,12 @@ impl RevlogEntryPartial {
             ease_factor: (self.ease_factor * 1000.0).round() as u32,
             taken_millis,
             review_kind: self.review_kind,
+
+            // The following three fields were added to support a version of Anki for detailed
+            // review feedback.
+            mtime: TimestampSecs(0),
+            feedback: "".to_string(),
+            tags: [].to_vec(),
         }
     }
 }

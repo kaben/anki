@@ -7,7 +7,8 @@
 
 import * as tr from "@tslib/ftl";
 import { localizedNumber } from "@tslib/i18n";
-import { Stats } from "@tslib/proto";
+import type { Stats } from "@tslib/proto";
+import { Revlog } from "@tslib/proto";
 import { dayLabel, timeSpan } from "@tslib/time";
 import type { Bin, ScaleSequential } from "d3";
 import {
@@ -49,7 +50,7 @@ export interface GraphData {
     reviewTime: Map<number, Reviews>;
 }
 
-const ReviewKind = Stats.RevlogEntry.ReviewKind;
+const ReviewKind = Revlog.RevlogEntry.ReviewKind;
 type BinType = Bin<Map<number, Reviews[]>, number>;
 
 export function gatherData(data: Stats.GraphsResponse): GraphData {
@@ -57,7 +58,7 @@ export function gatherData(data: Stats.GraphsResponse): GraphData {
     const reviewTime = new Map<number, Reviews>();
     const empty = { mature: 0, young: 0, learn: 0, relearn: 0, filtered: 0 };
 
-    for (const review of data.revlog as Stats.RevlogEntry[]) {
+    for (const review of data.revlog as Revlog.RevlogEntry[]) {
         if (review.reviewKind == ReviewKind.MANUAL) {
             // don't count days with only manual scheduling
             continue;

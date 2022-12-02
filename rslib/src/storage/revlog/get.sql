@@ -6,5 +6,8 @@ SELECT id,
   cast(lastIvl AS integer),
   factor,
   time,
-  type
+  type,
+  mod,
+  feedback,
+  tags
 FROM revlog

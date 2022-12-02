@@ -9,6 +9,7 @@ package anki.stats;
 
 import "anki/generic.proto";
 import "anki/cards.proto";
+import "anki/revlog.proto";
 
 service StatsService {
   rpc CardStats(cards.CardId) returns (CardStatsResponse);
@@ -20,7 +21,9 @@ service StatsService {
 message CardStatsResponse {
   message StatsRevlogEntry {
     int64 time = 1;
-    RevlogEntry.ReviewKind review_kind = 2;
+    // The RevlogEntry message definition has moved from this file to
+    // proto/anki/revlog.proto.
+    revlog.RevlogEntry.ReviewKind review_kind = 2;
     uint32 button_chosen = 3;
     // seconds
     uint32 interval = 4;
@@ -57,7 +60,9 @@ message GraphsRequest {
 
 message GraphsResponse {
   repeated cards.Card cards = 1;
-  repeated RevlogEntry revlog = 2;
+  // The RevlogEntry message definition has moved from this file to
+  // proto/anki/revlog.proto.
+  repeated revlog.RevlogEntry revlog = 2;
   uint32 days_elapsed = 3;
   // Based on rollover hour
   uint32 next_day_at_secs = 4;
@@ -79,22 +84,5 @@ message GraphPreferences {
   bool future_due_show_backlog = 4;
 }
 
-message RevlogEntry {
-  enum ReviewKind {
-    LEARNING = 0;
-    REVIEW = 1;
-    RELEARNING = 2;
-    // Recent Anki versions only use this when rescheduling disabled
-    FILTERED = 3;
-    MANUAL = 4;
-  }
-  int64 id = 1;
-  int64 cid = 2;
-  int32 usn = 3;
-  uint32 button_chosen = 4;
-  int32 interval = 5;
-  int32 last_interval = 6;
-  uint32 ease_factor = 7;
-  uint32 taken_millis = 8;
-  ReviewKind review_kind = 9;
-}
+// The RevlogEntry message definition has moved from this file to
+// proto/anki/revlog.proto.

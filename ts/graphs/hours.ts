@@ -7,7 +7,8 @@
 
 import * as tr from "@tslib/ftl";
 import { localizedNumber } from "@tslib/i18n";
-import { Stats } from "@tslib/proto";
+import type { Stats } from "@tslib/proto";
+import { Revlog } from "@tslib/proto";
 import {
     area,
     axisBottom,
@@ -33,7 +34,7 @@ interface Hour {
     correctCount: number;
 }
 
-const ReviewKind = Stats.RevlogEntry.ReviewKind;
+const ReviewKind = Revlog.RevlogEntry.ReviewKind;
 
 function gatherData(data: Stats.GraphsResponse, range: GraphRange): Hour[] {
     const hours = [...Array(24)].map((_n, idx: number) => {
@@ -41,7 +42,7 @@ function gatherData(data: Stats.GraphsResponse, range: GraphRange): Hour[] {
     });
     const cutoff = millisecondCutoffForRange(range, data.nextDayAtSecs);
 
-    for (const review of data.revlog as Stats.RevlogEntry[]) {
+    for (const review of data.revlog as Revlog.RevlogEntry[]) {
         switch (review.reviewKind) {
             case ReviewKind.LEARNING:
             case ReviewKind.REVIEW:

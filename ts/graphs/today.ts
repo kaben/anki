@@ -3,7 +3,8 @@
 
 import * as tr from "@tslib/ftl";
 import { localizedNumber } from "@tslib/i18n";
-import { Stats } from "@tslib/proto";
+import type { Stats } from "@tslib/proto";
+import { Revlog } from "@tslib/proto";
 import { studiedToday } from "@tslib/time";
 
 export interface TodayData {
@@ -11,7 +12,7 @@ export interface TodayData {
     lines: string[];
 }
 
-const ReviewKind = Stats.RevlogEntry.ReviewKind;
+const ReviewKind = Revlog.RevlogEntry.ReviewKind;
 
 export function gatherData(data: Stats.GraphsResponse): TodayData {
     let answerCount = 0;
@@ -26,7 +27,7 @@ export function gatherData(data: Stats.GraphsResponse): TodayData {
 
     const startOfTodayMillis = (data.nextDayAtSecs - 86400) * 1000;
 
-    for (const review of data.revlog as Stats.RevlogEntry[]) {
+    for (const review of data.revlog as Revlog.RevlogEntry[]) {
         if (review.id < startOfTodayMillis) {
             continue;
         }

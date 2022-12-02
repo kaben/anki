@@ -15,6 +15,7 @@ use crate::{
     pb,
     prelude::*,
     revlog::{RevlogEntry, RevlogReviewKind},
+    tags::split_tags,
 };
 
 pub(crate) struct StudiedToday {
@@ -43,6 +44,14 @@ fn row_to_revlog_entry(row: &Row) -> Result<RevlogEntry> {
         ease_factor: row.get(6)?,
         taken_millis: row.get(7).unwrap_or_default(),
         review_kind: row.get(8).unwrap_or_default(),
+
+        // The following three fields were added to support a version of Anki for detailed review
+        // feedback.
+        mtime: row.get(9)?,
+        feedback: row.get(10)?,
+        tags: split_tags(row.get_ref_unwrap(11).as_str()?)
+            .map(Into::into)
+            .collect(),
     })
 }
 

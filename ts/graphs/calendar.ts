@@ -3,6 +3,7 @@
 
 import * as tr from "@tslib/ftl";
 import { localizedDate, weekdayLabel } from "@tslib/i18n";
+import type { Revlog } from "@tslib/proto";
 import { Stats } from "@tslib/proto";
 import type { CountableTimeInterval } from "d3";
 import {
@@ -50,7 +51,7 @@ export function gatherData(
 ): GraphData {
     const reviewCount = new Map<number, number>();
 
-    for (const review of data.revlog as Stats.RevlogEntry[]) {
+    for (const review of data.revlog as Revlog.RevlogEntry[]) {
         if (review.buttonChosen == 0) {
             continue;
         }

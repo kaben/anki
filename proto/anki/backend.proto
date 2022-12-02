@@ -30,6 +30,10 @@ enum ServiceIndex {
   SERVICE_INDEX_CARDS = 14;
   SERVICE_INDEX_LINKS = 15;
   SERVICE_INDEX_IMPORT_EXPORT = 16;
+
+  // The Revlog service has been added to support a version of Anki for
+  // detailed review feedback.
+  SERVICE_INDEX_REVLOG = 17;
 }
 
 message BackendInit {

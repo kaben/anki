@@ -7,7 +7,8 @@
 
 import * as tr from "@tslib/ftl";
 import { localizedNumber } from "@tslib/i18n";
-import { Stats } from "@tslib/proto";
+import type { Stats } from "@tslib/proto";
+import { Revlog } from "@tslib/proto";
 import {
     axisBottom,
     axisLeft,
@@ -32,7 +33,7 @@ export interface GraphData {
     mature: ButtonCounts;
 }
 
-const ReviewKind = Stats.RevlogEntry.ReviewKind;
+const ReviewKind = Revlog.RevlogEntry.ReviewKind;
 
 export function gatherData(data: Stats.GraphsResponse, range: GraphRange): GraphData {
     const cutoff = millisecondCutoffForRange(range, data.nextDayAtSecs);
@@ -40,7 +41,7 @@ export function gatherData(data: Stats.GraphsResponse, range: GraphRange): Graph
     const young: ButtonCounts = [0, 0, 0, 0];
     const mature: ButtonCounts = [0, 0, 0, 0];
 
-    for (const review of data.revlog as Stats.RevlogEntry[]) {
+    for (const review of data.revlog as Revlog.RevlogEntry[]) {
         if (cutoff && (review.id as number) < cutoff) {
             continue;
         }

@@ -5,7 +5,6 @@ use crate::{
     config::{BoolKey, Weekday},
     pb,
     prelude::*,
-    revlog::RevlogEntry,
     search::SortMode,
 };
 
@@ -77,18 +76,20 @@ impl Collection {
     }
 }
 
-impl From<RevlogEntry> for pb::RevlogEntry {
-    fn from(e: RevlogEntry) -> Self {
-        pb::RevlogEntry {
-            id: e.id.0,
-            cid: e.cid.0,
-            usn: e.usn.0,
-            button_chosen: e.button_chosen as u32,
-            interval: e.interval,
-            last_interval: e.last_interval,
-            ease_factor: e.ease_factor,
-            taken_millis: e.taken_millis,
-            review_kind: e.review_kind as i32,
-        }
-    }
-}
+// Moved code below to rslib/src/detailed_feedback/revlog/mod.rs.
+
+//impl From<RevlogEntry> for pb::RevlogEntry {
+//    fn from(e: RevlogEntry) -> Self {
+//        pb::RevlogEntry {
+//            id: e.id.0,
+//            cid: e.cid.0,
+//            usn: e.usn.0,
+//            button_chosen: e.button_chosen as u32,
+//            interval: e.interval,
+//            last_interval: e.last_interval,
+//            ease_factor: e.ease_factor,
+//            taken_millis: e.taken_millis,
+//            review_kind: e.review_kind as i32,
+//        }
+//    }
+//}

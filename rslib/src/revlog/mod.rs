@@ -55,6 +55,12 @@ pub struct RevlogEntry {
     pub taken_millis: u32,
     #[serde(rename = "type", default, deserialize_with = "default_on_invalid")]
     pub review_kind: RevlogReviewKind,
+
+    // The following three fields were added to support a version of Anki for
+    // detailed review feedback.
+    pub mtime: TimestampSecs,
+    pub feedback: String,
+    pub tags: Vec<String>,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, PartialEq, Eq, TryFromPrimitive, Clone, Copy)]
@@ -104,6 +110,12 @@ impl Collection {
             ease_factor: u32::from(card.ease_factor),
             taken_millis: 0,
             review_kind: RevlogReviewKind::Manual,
+
+            // The following three fields were added to support a version of Anki for detailed
+            // review feedback.
+            mtime: TimestampSecs(0),
+            feedback: "".to_string(),
+            tags: [].to_vec(),
         };
         self.add_revlog_entry_undoable(entry)?;
         Ok(())
