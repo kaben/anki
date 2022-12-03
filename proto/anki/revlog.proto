@@ -8,9 +8,12 @@ option java_multiple_files = true;
 package anki.revlog;
 
 import "anki/generic.proto";
+import "anki/collection.proto";
 
 service RevlogService {
   rpc GetRevlogEntry(RevlogId) returns (RevlogEntry);
+  rpc UpdateRevlogEntries(UpdateRevlogEntriesRequest)
+      returns (collection.OpChanges);
 }
 
 message RevlogId {
@@ -22,6 +25,7 @@ message RevlogIds {
 }
 
 // RevlogEntry was moved here from proto/anki/stats.proto.
+
 message RevlogEntry {
   enum ReviewKind {
     LEARNING = 0;
@@ -46,4 +50,9 @@ message RevlogEntry {
   uint32 mtime_secs = 10;
   string feedback = 11;
   repeated string tags = 12;
+}
+
+message UpdateRevlogEntriesRequest {
+  repeated RevlogEntry revlog_entries = 1;
+  bool skip_undo_entry = 2;
 }

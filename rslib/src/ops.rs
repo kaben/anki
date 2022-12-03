@@ -40,6 +40,7 @@ pub enum Op {
     UpdateDeckConfig,
     UpdateNote,
     UpdatePreferences,
+    UpdateRevlogEntry,
     UpdateTag,
     UpdateNotetype,
     SetCurrentDeck,
@@ -68,6 +69,7 @@ impl Op {
             Op::UpdateDeck => tr.actions_update_deck(),
             Op::UpdateNote => tr.actions_update_note(),
             Op::UpdatePreferences => tr.preferences_preferences(),
+            Op::UpdateRevlogEntry => tr.actions_update_revlog_entry(),
             Op::UpdateTag => tr.actions_update_tag(),
             Op::SetCardDeck => tr.browsing_change_deck(),
             Op::SetFlag => tr.actions_set_flag(),
@@ -105,6 +107,7 @@ pub struct StateChanges {
     pub config: bool,
     pub deck_config: bool,
     pub mtime: bool,
+    pub revlog_entry: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -144,7 +147,12 @@ impl OpChanges {
 
     pub fn requires_browser_table_redraw(&self) -> bool {
         let c = &self.changes;
-        c.card || c.notetype || c.config || (c.note && self.op != Op::AddNote) || c.deck
+        c.card
+            || c.notetype
+            || c.config
+            || (c.note && self.op != Op::AddNote)
+            || c.deck
+            || c.revlog_entry
     }
 
     pub fn requires_browser_sidebar_redraw(&self) -> bool {

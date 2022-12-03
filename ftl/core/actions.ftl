@@ -41,6 +41,7 @@ actions-add-note = Add Note
 actions-update-tag = Update Tag
 actions-update-note = Update Note
 actions-update-card = Update Card
+actions-update-revlog-entry = Update Revlog Entry
 actions-update-deck = Update Deck
 actions-forget-card = Forget Card
 actions-build-filtered-deck = Build Deck

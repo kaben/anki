@@ -7,6 +7,11 @@ use crate::prelude::*;
 #[derive(Debug)]
 pub(crate) enum UndoableRevlogChange {
     Added(Box<RevlogEntry>),
+
+    // The `Updated` enum value added to support a version of Anki for
+    // detailed review feedback.
+    Updated(Box<RevlogEntry>),
+
     Removed(Box<RevlogEntry>),
 }
 
@@ -18,6 +23,18 @@ impl Collection {
                 self.save_undo(UndoableRevlogChange::Removed(revlog));
                 Ok(())
             }
+
+            // The `Updated` enum value added to support a version of Anki for detailed review
+            // feedback. This match calls `update_revlog_entry_undoable()` which has been
+            // implemented in `rslib/src/detailed_feedback/revlog/undo.rs`.
+            UndoableRevlogChange::Updated(revlog) => {
+                let current = self
+                    .storage
+                    .get_revlog_entry(revlog.id)?
+                    .or_invalid("revlog entry disappeared")?;
+                self.update_revlog_entry_undoable(&revlog, current)
+            }
+
             UndoableRevlogChange::Removed(revlog) => {
                 self.storage.add_revlog_entry(&revlog, false)?;
                 self.save_undo(UndoableRevlogChange::Added(revlog));
