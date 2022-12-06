@@ -598,14 +598,10 @@ impl RowContext {
             "(no reviews yet)".into()
         } else {
             let mtime = self.revlog_entries[0].mtime;
-            if (mtime.0 == 0) {
+            if mtime.0 == 0 {
                 "(never)".into()
             } else {
-                format!(
-                    "{} @ {}",
-                    mtime.date_string(),
-                    mtime.time_string(),
-                )
+                format!("{} @ {}", mtime.date_string(), mtime.time_string(),)
             }
         }
     }
