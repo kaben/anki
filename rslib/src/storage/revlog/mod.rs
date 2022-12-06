@@ -14,7 +14,7 @@ use crate::{
     error::Result,
     pb,
     prelude::*,
-    revlog::{RevlogEntry, RevlogReviewKind},
+    revlog::{RevlogEntry, RevlogId, RevlogReviewKind},
     tags::split_tags,
 };
 
@@ -116,6 +116,18 @@ impl SqliteStorage {
         self.db
             .prepare_cached(concat!(include_str!("get.sql"), " where cid=?"))?
             .query_and_then([cid], row_to_revlog_entry)?
+            .collect()
+    }
+
+    // The following function was added to support a version of Anki for detailed review feedback.
+
+    pub(crate) fn get_revlog_entries_for_note(&self, nid: NoteId) -> Result<Vec<RevlogEntry>> {
+        self.db
+            .prepare_cached(concat!(
+                include_str!("get.sql"),
+                " INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?"
+            ))?
+            .query_and_then([nid], row_to_revlog_entry)?
             .collect()
     }
 

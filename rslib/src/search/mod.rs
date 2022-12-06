@@ -361,6 +361,13 @@ fn card_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::SortField => "n.sfld collate nocase asc, c.ord asc".into(),
         Column::Tags => "n.tags asc".into(),
         Column::Answer | Column::Custom | Column::Question => "".into(),
+
+        // FIXME@kaben: change these sort criteria.
+        Column::RevlogId => "n.sfld collate nocase asc, c.ord asc".into(),
+        Column::RevlogMod => "n.sfld collate nocase asc, c.ord asc".into(),
+        Column::ReviewedAt => "n.sfld collate nocase asc, c.ord asc".into(),
+        Column::ReviewFeedback => "n.sfld collate nocase asc, c.ord asc".into(),
+        Column::ReviewTags => "n.sfld collate nocase asc, c.ord asc".into(),
     }
 }
 
@@ -380,6 +387,13 @@ fn note_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::SortField => "n.sfld collate nocase asc".into(),
         Column::Tags => "n.tags asc".into(),
         Column::Answer | Column::Custom | Column::Question => "".into(),
+
+        // FIXME@kaben: change these sort criteria.
+        Column::RevlogId => "n.sfld collate nocase asc".into(),
+        Column::RevlogMod => "n.sfld collate nocase asc".into(),
+        Column::ReviewedAt => "n.sfld collate nocase asc".into(),
+        Column::ReviewFeedback => "n.sfld collate nocase asc".into(),
+        Column::ReviewTags => "n.sfld collate nocase asc".into(),
     }
 }
 

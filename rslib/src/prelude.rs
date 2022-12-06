@@ -19,7 +19,7 @@ pub use crate::{
     notetype::{Notetype, NotetypeId},
     ops::{Op, OpChanges, OpOutput},
     require,
-    revlog::RevlogId,
+    revlog::{RevlogEntry, RevlogId},
     search::{SearchBuilder, TryIntoSearch},
     timestamp::{TimestampMillis, TimestampSecs},
     types::Usn,

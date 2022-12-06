@@ -47,6 +47,17 @@ pub enum Column {
     SortField,
     #[strum(serialize = "noteTags")]
     Tags,
+
+    // The following five columns were added to support a version of Anki for detailed review
+    // feedback.
+    RevlogId,
+    RevlogMod,
+    #[strum(serialize = "reviewedAt")]
+    ReviewedAt,
+    #[strum(serialize = "reviewNotes")]
+    ReviewFeedback,
+    #[strum(serialize = "reviewTags")]
+    ReviewTags,
 }
 
 impl Default for Column {
@@ -57,6 +68,10 @@ impl Default for Column {
 
 struct RowContext {
     notes_mode: bool,
+
+    // `revlog_entries` added to support version of Anki for detailed review feedback.
+    revlog_entries: Vec<RevlogEntry>,
+
     cards: Vec<Card>,
     note: Note,
     notetype: Arc<Notetype>,
@@ -145,6 +160,11 @@ impl Column {
             Self::Reps => tr.scheduling_reviews(),
             Self::SortField => tr.browsing_sort_field(),
             Self::Tags => tr.editing_tags(),
+            Self::RevlogId => tr.revlog_id(),
+            Self::RevlogMod => tr.revlog_modified(),
+            Self::ReviewedAt => tr.reviewed_at(),
+            Self::ReviewFeedback => tr.review_feedback(),
+            Self::ReviewTags => tr.review_tags(),
         }
         .into()
     }
@@ -185,10 +205,14 @@ impl Column {
     pub fn default_order(self) -> pb::browser_columns::Sorting {
         use pb::browser_columns::Sorting;
         match self {
-            Column::Question | Column::Answer | Column::Custom => Sorting::None,
-            Column::SortField | Column::Tags | Column::Notetype | Column::Deck => {
-                Sorting::Ascending
+            Column::Question | Column::Answer | Column::ReviewFeedback | Column::Custom => {
+                Sorting::None
             }
+            Column::SortField
+            | Column::Tags
+            | Column::ReviewTags
+            | Column::Notetype
+            | Column::Deck => Sorting::Ascending,
             Column::CardMod
             | Column::Cards
             | Column::Due
@@ -197,6 +221,9 @@ impl Column {
             | Column::Interval
             | Column::NoteCreation
             | Column::NoteMod
+            | Column::RevlogId
+            | Column::RevlogMod
+            | Column::ReviewedAt
             | Column::Reps => Sorting::Descending,
         }
     }
@@ -309,6 +336,7 @@ impl RowContext {
     ) -> Result<Self> {
         let cards;
         let note;
+        let revlog_entries;
         if notes_mode {
             note = col
                 .get_note_maybe_with_fields(NoteId(id), with_card_render)
@@ -320,12 +348,14 @@ impl RowContext {
             if cards.is_empty() {
                 return Err(AnkiError::DatabaseCheckRequired);
             }
+            revlog_entries = col.storage.get_revlog_entries_for_note(note.id)?;
         } else {
             cards = vec![col
                 .storage
                 .get_card(CardId(id))?
                 .ok_or(AnkiError::Deleted)?];
             note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
+            revlog_entries = col.storage.get_revlog_entries_for_card(cards[0].id)?;
         }
         let notetype = col
             .get_notetype(note.notetype_id)?
@@ -351,6 +381,7 @@ impl RowContext {
         Ok(RowContext {
             notes_mode,
             cards,
+            revlog_entries,
             note,
             notetype,
             deck,
@@ -398,6 +429,11 @@ impl RowContext {
             Column::Tags => self.note.tags.join(" "),
             Column::Notetype => self.notetype.name.to_owned(),
             Column::Custom => "".to_string(),
+            Column::RevlogId => self.revlog_id_str(),
+            Column::RevlogMod => self.revlog_mod_str(),
+            Column::ReviewedAt => self.reviewed_at_str(),
+            Column::ReviewFeedback => self.review_feedback_str(),
+            Column::ReviewTags => self.review_tags_str(),
         })
     }
 
@@ -536,6 +572,74 @@ impl RowContext {
                 NotetypeKind::Cloze => format!("{} {}", name, self.cards[0].template_idx + 1),
             }
         })
+    }
+
+    // The following five functions were added to support a version of Anki for detailed review
+    // feedback:
+    //
+    // - revlog_id_str()
+    // - revlog_mod_str()
+    // - reviewed_at_str()
+    // - review_feedback_str()
+    // - review_tags_str()
+
+    /// Revlog ID number as string
+    fn revlog_id_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            format!("{}", self.revlog_entries[0].id)
+        }
+    }
+
+    /// Revlog entry modification time as string
+    fn revlog_mod_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let mtime = self.revlog_entries[0].mtime;
+            if (mtime.0 == 0) {
+                "(never)".into()
+            } else {
+                format!(
+                    "{} @ {}",
+                    mtime.date_string(),
+                    mtime.time_string(),
+                )
+            }
+        }
+    }
+
+    /// Revlog entry creation time as string
+    fn reviewed_at_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let timestamp_secs = TimestampMillis(self.revlog_entries[0].id.into()).as_secs();
+            format!(
+                "{} @ {}",
+                timestamp_secs.date_string(),
+                timestamp_secs.time_string(),
+            )
+        }
+    }
+
+    /// Revlog entry feedback string
+    fn review_feedback_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "".into()
+        } else {
+            self.revlog_entries[0].feedback.to_string()
+        }
+    }
+
+    /// Revlog entry tags as string
+    fn review_tags_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "".into()
+        } else {
+            self.revlog_entries[0].tags.join(" ")
+        }
     }
 
     fn get_row_font_name(&self) -> Result<String> {
