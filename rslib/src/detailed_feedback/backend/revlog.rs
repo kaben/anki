@@ -3,7 +3,7 @@
 
 use crate::{
     backend::Backend,
-    pb::revlog_service::Service as RevlogService,
+    pb::revlog::revlog_service::Service as RevlogService,
     pb::{self as pb},
     prelude::*,
     revlog::RevlogEntry,
@@ -12,7 +12,7 @@ use crate::{
 impl RevlogService for Backend {
     /// Backend function. Returns a "Review" object (corresponding to a row in the revlog table)
     /// for the given review ID.
-    fn get_revlog_entry(&self, input: pb::RevlogId) -> Result<pb::RevlogEntry> {
+    fn get_revlog_entry(&self, input: pb::revlog::RevlogId) -> Result<pb::revlog::RevlogEntry> {
         let rid = input.rid.into();
         self.with_col(|col| {
             col.storage
@@ -39,8 +39,8 @@ impl RevlogService for Backend {
     /// more details.)
     fn update_revlog_entries(
         &self,
-        input: pb::UpdateRevlogEntriesRequest,
-    ) -> Result<pb::OpChanges> {
+        input: pb::revlog::UpdateRevlogEntriesRequest,
+    ) -> Result<pb::collection::OpChanges> {
         self.with_col(|col| {
             let revlog_entries = input
                 .revlog_entries

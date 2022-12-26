@@ -12,9 +12,9 @@ use crate::{
 
 /// Conversion from `RevlogEntry` to `pb::RevlogEntry`, the latter being the Protocol Buffers
 /// datatype defined in `proto/anki/revlog.proto`.
-impl From<RevlogEntry> for pb::RevlogEntry {
+impl From<RevlogEntry> for pb::revlog::RevlogEntry {
     fn from(e: RevlogEntry) -> Self {
-        pb::RevlogEntry {
+        pb::revlog::RevlogEntry {
             id: e.id.0,
             cid: e.cid.0,
             usn: e.usn.0,
@@ -32,8 +32,8 @@ impl From<RevlogEntry> for pb::RevlogEntry {
 }
 
 /// Conversion from `pb::RevlogEntry` to `RevlogEntry`.
-impl From<pb::RevlogEntry> for RevlogEntry {
-    fn from(e: pb::RevlogEntry) -> Self {
+impl From<pb::revlog::RevlogEntry> for RevlogEntry {
+    fn from(e: pb::revlog::RevlogEntry) -> Self {
         let review_kind = RevlogReviewKind::try_from(e.review_kind as u8)
             .or_invalid("invalid review kind")
             .unwrap();

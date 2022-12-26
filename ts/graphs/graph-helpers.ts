@@ -5,8 +5,9 @@
 @typescript-eslint/no-explicit-any: "off",
 @typescript-eslint/ban-ts-comment: "off" */
 
-import type { Cards, Revlog } from "@tslib/proto";
-import type { Selection } from "d3";
+import type { Cards, Stats } from "@tslib/proto";
+import type { Bin, Selection } from "d3";
+import { sum } from "d3";
 
 // amount of data to fetch from backend
 export enum RevlogRange {
@@ -97,3 +98,13 @@ export type SearchDispatch = <EventKey extends Extract<keyof SearchEventMap, str
     type: EventKey,
     detail: SearchEventMap[EventKey],
 ) => void;
+
+/// Convert a protobuf map that protobufjs represents as an object with string
+/// keys into a Map with numeric keys.
+export function numericMap<T>(obj: { [k: string]: T }): Map<number, T> {
+    return new Map(Object.entries(obj).map(([k, v]) => [Number(k), v]));
+}
+
+export function getNumericMapBinValue(d: Bin<Map<number, number>, number>): number {
+    return sum(d, (d) => d[1]);
+}
