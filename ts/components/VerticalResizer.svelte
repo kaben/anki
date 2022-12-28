@@ -47,7 +47,12 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     }
 
     function lockPointer(this: HTMLHRElement) {
-        this.requestPointerLock();
+        /* Try to avoid double locking in order to silence error:
+         * "Uncaught (in promise) InUseAttributeError: Pointer is already locked."
+         */
+        if (!!document.pointerLockElement) {
+            this.requestPointerLock();
+        }
 
         before = components[index];
         after = components[index + 1];

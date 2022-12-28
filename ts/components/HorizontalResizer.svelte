@@ -75,10 +75,15 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     }
 
     function lockPointer(this: HTMLDivElement) {
-        this.requestPointerLock();
+        /* Try to avoid double locking in order to silence error:
+         * "Uncaught (in promise) InUseAttributeError: Pointer is already locked."
+         */
+        if (!!document.pointerLockElement) {
+            this.requestPointerLock();
+        }
 
         before = panes[index];
-        after = panes[index + 1];
+        after = panes[after_index];
 
         for (const pane of panes) {
             pane.resizable.getHeightResizer().start();
