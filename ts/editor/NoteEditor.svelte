@@ -18,6 +18,10 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         hoveredField: Writable<EditorFieldAPI | null>;
         focusedField: Writable<EditorFieldAPI | null>;
         focusedInput: Writable<EditingInputAPI | null>;
+        revFields: EditorFieldAPI[];
+        revHoveredField: Writable<EditorFieldAPI | null>;
+        revFocusedField: Writable<EditorFieldAPI | null>;
+        revFocusedInput: Writable<EditingInputAPI | null>;
         toolbar: EditorToolbarAPI;
     }
 
@@ -277,6 +281,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         if (document.visibilityState === "hidden") {
             // will fire on session close and minimize
             saveFieldNow();
+            saveRevFieldNow();
         }
     }
 
@@ -348,6 +353,17 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
             setInsertSymbolsEnabled,
             setShrinkImages,
             setCloseHTMLTags,
+
+            setRevFields,
+            setRevCollapsed,
+            setRevPlainTexts,
+            setRevDescriptions,
+            setRevFonts,
+            setRevTags,
+            saveRevFieldNow,
+            getRevId,
+            setRevId,
+
             ...oldEditorAdapter,
         });
 
@@ -362,6 +378,11 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     const focusedField: NoteEditorAPI["focusedField"] = writable(null);
     const focusedInput: NoteEditorAPI["focusedInput"] = writable(null);
 
+    const revHoveredField: NoteEditorAPI["revHoveredField"] = writable(null);
+    const revFocusedField: NoteEditorAPI["revFocusedField"] = writable(null);
+    const revFocusedInput: NoteEditorAPI["revFocusedInput"] = writable(null);
+    const revFields = clearableArray<EditorFieldAPI>();
+
     const api: NoteEditorAPI = {
         ...apiPartial,
         hoveredField,
@@ -369,6 +390,10 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         focusedInput,
         toolbar: toolbar as EditorToolbarAPI,
         fields,
+        revHoveredField,
+        revFocusedField,
+        revFocusedInput,
+        revFields,
     };
 
     setContextProperty(api);
@@ -384,29 +409,170 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     $: tagAmount = $tags.length;
 
+    /* These functions (collapseTags, expandTags, and snapResizer) don't work as
+     * expected when there are more than two panes. This seems to be due to
+     * interactions with flex layout. The problem is that the resizing code
+     * assumes that the height of each pane is equal to its flex-grow factor,
+     * but the web view adjusts the flex-grow factors of each pane as the panes
+     * are resized. So each time the user adjusts a horizontal splitter position
+     * between panes in the web view, the assumption becomes more and more
+     * incorrect. So I'm disabling these functions for now. -- @kaben
+     */
     let snapTags = $tagsCollapsed;
 
     function collapseTags(): void {
-        lowerResizer.move([tagsPane, fieldsPane], tagsPane.minHeight);
-        $tagsCollapsed = snapTags = true;
+        //lowerResizer.move([tagsPane, fieldsPane], tagsPane.minHeight);
+        //$tagsCollapsed = snapTags = true;
     }
 
     function expandTags(): void {
-        lowerResizer.move([tagsPane, fieldsPane], tagsPane.maxHeight);
-        $tagsCollapsed = snapTags = false;
+        //lowerResizer.move([tagsPane, fieldsPane], tagsPane.maxHeight);
+        //$tagsCollapsed = snapTags = false;
     }
 
-    window.addEventListener("resize", () => snapResizer(snapTags));
+    //window.addEventListener("resize", () => snapResizer(snapTags));
 
     function snapResizer(collapse: boolean): void {
-        if (collapse) {
-            collapseTags();
-            bridgeCommand("collapseTags");
-        } else {
-            expandTags();
-            bridgeCommand("expandTags");
-        }
+        //if (collapse) {
+        //    collapseTags();
+        //    bridgeCommand("collapseTags");
+        //} else {
+        //    expandTags();
+        //    bridgeCommand("expandTags");
+        //}
     }
+
+
+
+    const revFieldStores: Writable<string>[] = [];
+    let revFieldNames: string[] = [];
+    let revFieldsCollapsed: boolean[] = [];
+    let revRichTextsHidden: boolean[] = [];
+    let revPlainTextsHidden: boolean[] = [];
+    let revPlainTextDefaults: boolean[] = [];
+    let revFieldDescriptions: string[] = [];
+    let revFonts: [string, number, boolean][] = [];
+    const revTags = writable<string[]>([]);
+    let revId: number | null = null;
+    const revFieldSave = new ChangeTimer();
+
+    let reviewResizer: HorizontalResizer;
+    const reviewPane = new ResizablePane();
+    let revRichTextInputs: RichTextInput[] = [];
+    let revPlainTextInputs: PlainTextInput[] = [];
+    let reviewTagsResizer: HorizontalResizer;
+    const reviewTagsPane = new ResizablePane();
+    let reviewTagEditor: TagEditor;
+
+    $: revFieldsData = revFieldNames.map((name, index) => ({
+        name,
+        plainText: revPlainTextDefaults[index],
+        description: revFieldDescriptions[index],
+        fontFamily: quoteFontFamily(revFonts[index][0]),
+        fontSize: revFonts[index][1],
+        direction: revFonts[index][2] ? "rtl" : "ltr",
+        collapsed: revFieldsCollapsed[index],
+    })) as FieldData[];
+    $: revRichTextInputs = revRichTextInputs.filter(Boolean);
+    $: revPlainTextInputs = revPlainTextInputs.filter(Boolean);
+    $: revTagAmount = $revTags.length;
+
+
+
+    export function setRevFields(fs: [string, string][]): void {
+        // this is a bit of a mess -- when moving to Rust calls, we should make
+        // sure to have two backend endpoints for:
+        // * the note, which can be set through this view
+        // * the fieldname, font, etc., which cannot be set
+
+        const newFieldNames: string[] = [];
+
+        for (const [index, [fieldName]] of fs.entries()) {
+            newFieldNames[index] = fieldName;
+        }
+
+        for (let i = revFieldStores.length; i < newFieldNames.length; i++) {
+            const newStore = writable("");
+            revFieldStores[i] = newStore;
+            newStore.subscribe((value) => updateRevField(i, value));
+        }
+
+        for (
+            let i = revFieldStores.length;
+            i > newFieldNames.length;
+            i = revFieldStores.length
+        ) {
+            revFieldStores.pop();
+        }
+
+        for (const [index, [, fieldContent]] of fs.entries()) {
+            revFieldStores[index].set(fieldContent);
+        }
+
+        revFieldNames = newFieldNames;
+    }
+
+    export function setRevCollapsed(defaultCollapsed: boolean[]): void {
+        revFieldsCollapsed = defaultCollapsed;
+    }
+
+    export function setRevPlainTexts(defaultPlainTexts: boolean[]): void {
+        revPlainTextDefaults = defaultPlainTexts;
+        revRichTextsHidden = defaultPlainTexts;
+        revPlainTextsHidden = Array.from(defaultPlainTexts, (v) => !v);
+    }
+
+    export function setRevDescriptions(descriptions: string[]): void {
+        revFieldDescriptions = descriptions;
+    }
+
+    export function setRevFonts(fs: [string, number, boolean][]): void {
+        revFonts = fs;
+    }
+
+    export function setRevTags(ts: string[]): void {
+        $revTags = ts;
+    }
+
+    export function setRevId(rid: number): void {
+        // TODO this is a hack, because it requires the NoteEditor to know implementation details of the PlainTextInput.
+        // It should be refactored once we work on our own Undo stack
+        for (const pi of revPlainTextInputs) {
+            pi.api.codeMirror.editor.then((editor) => editor.clearHistory());
+        }
+        revId = rid;
+    }
+
+    function getRevId(): number | null {
+        return revId;
+    }
+
+    function saveRevTags({ detail }: CustomEvent): void {
+        revTagAmount = detail.tags.filter((tag: string) => tag != "").length;
+        bridgeCommand(`saveRevTags:${JSON.stringify(detail.tags)}`);
+    }
+
+    function transformRevContentBeforeSave(content: string): string {
+        return content.replace(/ data-editor-shrink="(true|false)"/g, "");
+    }
+
+    function updateRevField(index: number, content: string): void {
+        revFieldSave.schedule(
+            () =>
+                bridgeCommand(
+                    `revKey:${index}:${getRevId()}:${transformRevContentBeforeSave(
+                        content,
+                    )}`,
+                ),
+            600,
+        );
+    }
+
+    export function saveRevFieldNow(): void {
+        /* this will always be a key save */
+        revFieldSave.fireImmediately();
+    }
+
 </script>
 
 <!--
@@ -591,27 +757,15 @@ the AddCards dialog) should be implemented in the user of this component.
     </Pane>
 
     <HorizontalResizer
-        panes={[fieldsPane, tagsPane]}
-        showIndicator={$tagsCollapsed || snapTags}
-        tip={$tagsCollapsed
-            ? tr.editingDoubleClickToExpand()
-            : tr.editingDoubleClickToCollapse()}
+        panes={[fieldsPane, tagsPane, reviewPane, reviewTagsPane]}
+        index={0}
+        pushOtherPanes={true}
+        showIndicator={true}
         {clientHeight}
         bind:this={lowerResizer}
-        on:dblclick={() => snapResizer(!$tagsCollapsed)}
-        on:release={() => {
-            snapResizer(snapTags);
-        }}
     >
-        <div class="tags-expander">
-            <TagAddButton
-                on:tagappend={() => {
-                    tagEditor.appendEmptyTag();
-                }}
-                keyCombination="Control+Shift+T"
-            >
-                {@html tagAmount > 0 ? `${tagAmount} ${tr.editingTags()}` : ""}
-            </TagAddButton>
+        <div class="tags-info">
+            {@html tagAmount > 0 ? `${tagAmount} Note ${tr.editingTags()}` : ""}
         </div>
     </HorizontalResizer>
 
@@ -619,34 +773,211 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={tagsPane.resizable}
         on:resize={(e) => {
             tagsPane.height = e.detail.height;
-            if (tagsPane.maxHeight > 0) {
-                snapTags = tagsPane.height < tagsPane.maxHeight / 2;
-            }
         }}
-        --opacity={(() => {
-            if (!$tagsCollapsed) {
-                return 1;
-            } else {
-                return snapTags ? tagsPane.height / tagsPane.maxHeight : 1;
-            }
-        })()}
     >
-        <PaneContent scroll={false}>
+        <PaneContent>
             <TagEditor
                 {tags}
-                --button-opacity={snapTags ? 0 : 1}
                 bind:this={tagEditor}
                 on:tagsupdate={saveTags}
-                on:tagsFocused={() => {
-                    expandTags();
-                    $tagsCollapsed = false;
-                }}
-                on:heightChange={(e) => {
-                    tagsPane.maxHeight = e.detail.height;
-                    if (!$tagsCollapsed) {
-                        expandTags();
-                    }
-                }}
+            />
+        </PaneContent>
+    </Pane>
+
+    <HorizontalResizer
+        panes={[fieldsPane, tagsPane, reviewPane, reviewTagsPane]}
+        index={1}
+        pushOtherPanes={true}
+        showIndicator={true}
+        {clientHeight}
+        bind:this={reviewResizer}
+    >
+        <div class="review-info">
+            Review Info
+        </div>
+    </HorizontalResizer>
+
+    <Pane
+        bind:this={reviewPane.resizable}
+        on:resize={(e) => {
+            reviewPane.height = e.detail.height;
+        }}
+    >
+        <PaneContent>
+            <Fields>
+                {#each revFieldsData as field, index}
+                    {@const content = revFieldStores[index]}
+
+                    <EditorField
+                        {field}
+                        {content}
+                        flipInputs={revPlainTextDefaults[index]}
+                        api={revFields[index]}
+                        on:focusin={() => {
+                            $revFocusedField = revFields[index];
+                            bridgeCommand(`revFocus:${index}`);
+                        }}
+                        on:focusout={() => {
+                            $revFocusedField = null;
+                            bridgeCommand(
+                                `revBlur:${index}:${getRevId()}:${transformContentBeforeSave(
+                                    get(content),
+                                )}`,
+                            );
+                        }}
+                        on:mouseenter={() => {
+                            $revHoveredField = revFields[index];
+                        }}
+                        on:mouseleave={() => {
+                            $revHoveredField = null;
+                        }}
+                        collapsed={revFieldsCollapsed[index]}
+                        dupe={cols[index] === "dupe"}
+                        --description-font-size="{field.fontSize}px"
+                        --description-content={`"${field.description}"`}
+                    >
+                        <svelte:fragment slot="field-label">
+                            <LabelContainer
+                                collapsed={revFieldsCollapsed[index]}
+                                on:toggle={async () => {
+                                    revFieldsCollapsed[index] = !revFieldsCollapsed[index];
+
+                                    const defaultInput = !revPlainTextDefaults[index]
+                                        ? revRichTextInputs[index]
+                                        : revPlainTextInputs[index];
+
+                                    if (!revFieldsCollapsed[index]) {
+                                        refocusInput(defaultInput.api);
+                                    } else if (!revPlainTextDefaults[index]) {
+                                        revPlainTextsHidden[index] = true;
+                                    } else {
+                                        revRichTextsHidden[index] = true;
+                                    }
+                                }}
+                                --icon-align="bottom"
+                            >
+                                <svelte:fragment slot="field-name">
+                                    <LabelName>
+                                        {field.name}
+                                    </LabelName>
+                                </svelte:fragment>
+                                <FieldState>
+                                    {#if cols[index] === "dupe"}
+                                        <DuplicateLink />
+                                    {/if}
+                                    {#if revPlainTextDefaults[index]}
+                                        <RichTextBadge
+                                            show={!revFieldsCollapsed[index] &&
+                                                (revFields[index] === $revHoveredField ||
+                                                    revFields[index] === $revFocusedField)}
+                                            bind:off={revRichTextsHidden[index]}
+                                            on:toggle={async () => {
+                                                revRichTextsHidden[index] =
+                                                    !revRichTextsHidden[index];
+
+                                                if (!revRichTextsHidden[index]) {
+                                                    refocusInput(
+                                                        revRichTextInputs[index].api,
+                                                    );
+                                                }
+                                            }}
+                                        />
+                                    {:else}
+                                        <PlainTextBadge
+                                            show={!revFieldsCollapsed[index] &&
+                                                (revFields[index] === $revHoveredField ||
+                                                    revFields[index] === $revFocusedField)}
+                                            bind:off={revPlainTextsHidden[index]}
+                                            on:toggle={async () => {
+                                                revPlainTextsHidden[index] =
+                                                    !revPlainTextsHidden[index];
+
+                                                if (!revPlainTextsHidden[index]) {
+                                                    refocusInput(
+                                                        revPlainTextInputs[index].api,
+                                                    );
+                                                }
+                                            }}
+                                        />
+                                    {/if}
+                                    <slot
+                                        name="field-state"
+                                        {field}
+                                        {index}
+                                        show={revFields[index] === $revHoveredField ||
+                                            revFields[index] === $revFocusedField}
+                                    />
+                                </FieldState>
+                            </LabelContainer>
+                        </svelte:fragment>
+                        <svelte:fragment slot="rich-text-input">
+                            <Collapsible
+                                collapse={revRichTextsHidden[index]}
+                                let:collapsed={hidden}
+                                toggleDisplay
+                            >
+                                <RichTextInput
+                                    {hidden}
+                                    on:focusout={() => {
+                                        saveRevFieldNow();
+                                        $revFocusedInput = null;
+                                    }}
+                                    bind:this={revRichTextInputs[index]}
+                                />
+                            </Collapsible>
+                        </svelte:fragment>
+                        <svelte:fragment slot="plain-text-input">
+                            <Collapsible
+                                collapse={revPlainTextsHidden[index]}
+                                let:collapsed={hidden}
+                                toggleDisplay
+                            >
+                                <PlainTextInput
+                                    {hidden}
+                                    on:focusout={() => {
+                                        saveRevFieldNow();
+                                        $revFocusedInput = null;
+                                    }}
+                                    bind:this={revPlainTextInputs[index]}
+                                />
+                            </Collapsible>
+                        </svelte:fragment>
+                    </EditorField>
+                {/each}
+
+                <MathjaxOverlay />
+                <ImageOverlay maxWidth={250} maxHeight={125} />
+                {#if insertSymbols}
+                    <SymbolsOverlay />
+                {/if}
+            </Fields>
+        </PaneContent>
+    </Pane>
+
+    <HorizontalResizer
+        panes={[fieldsPane, tagsPane, reviewPane, reviewTagsPane]}
+        index={2}
+        pushOtherPanes={true}
+        showIndicator={true}
+        {clientHeight}
+        bind:this={reviewTagsResizer}
+    >
+        <div class="tags-info">
+            Review Tags
+        </div>
+    </HorizontalResizer>
+
+    <Pane
+        bind:this={reviewTagsPane.resizable}
+        on:resize={(e) => {
+            reviewTagsPane.height = e.detail.height;
+        }}
+    >
+        <PaneContent>
+            <TagEditor
+                tags={revTags}
+                bind:this={reviewTagEditor}
+                on:tagsupdate={saveRevTags}
             />
         </PaneContent>
     </Pane>
@@ -657,5 +988,17 @@ the AddCards dialog) should be implemented in the user of this component.
         display: flex;
         flex-direction: column;
         height: 100%;
+    }
+
+    .tags-info {
+        cursor: pointer;
+        color: var(--fg-subtle);
+        margin-left: 0.75rem;
+    }
+
+    .review-info {
+        cursor: pointer;
+        color: var(--fg-subtle);
+        margin-left: 0.75rem;
     }
 </style>

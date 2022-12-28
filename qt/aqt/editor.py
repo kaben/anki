@@ -523,6 +523,21 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         text_color = self.mw.pm.profile.get("lastTextColor", "#0000ff")
         highlight_color = self.mw.pm.profile.get("lastHighlightColor", "#0000ff")
 
+        # FIXME@kaben: reusing note.tags as standin for review.tags.
+        # - Switch to review.tags.
+        # - Move into f-string below.
+
+        rev_flds = [{'name': 'Review Feedback', 'ord': 0, 'sticky': False, 'rtl': False, 'font': 'Liberation Sans', 'size': 20, 'description': '', 'plainText': False, 'collapsed': False, 'media': []},]
+        rev_data = [('Review Feedback', '220731-1253: trouble: arithmetic: took reciprocal of correct ratio; context: intending to compute \\(\\frac{1}{\\sin \\theta}\\) I instead computed \\(\\sin \\theta\\).'),]
+        rev_collapsed = [False,]
+        rev_plain_texts = [False,]
+        rev_descriptions = ['Review feedback']
+        rev_fonts = [('Liberation Sans', 20, False),]
+        rev_id = 23232323232
+        rev_tags = ['ann::fubar', 'ann::fubaz',]
+
+
+
         js = f"""
             saveSession();
             setFields({json.dumps(data)});
@@ -539,6 +554,14 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             setMathjaxEnabled({json.dumps(self.mw.col.get_config("renderMathjax", True))});
             setShrinkImages({json.dumps(self.mw.col.get_config("shrinkEditorImages", True))});
             setCloseHTMLTags({json.dumps(self.mw.col.get_config("closeHTMLTags", True))});
+
+            setRevFields({json.dumps(rev_data)});
+            setRevCollapsed({json.dumps(rev_collapsed)});
+            setRevPlainTexts({json.dumps(rev_plain_texts)});
+            setRevDescriptions({json.dumps(rev_descriptions)});
+            setRevFonts({json.dumps(rev_fonts)});
+            setRevId({json.dumps(rev_id)});
+            setRevTags({json.dumps(rev_tags)});
             """
 
         if self.addMode:
