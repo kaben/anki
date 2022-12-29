@@ -5,7 +5,7 @@
 @typescript-eslint/no-explicit-any: "off",
 @typescript-eslint/ban-ts-comment: "off" */
 
-import type { Cards, Stats } from "@tslib/proto";
+import type { Cards, Revlog } from "@tslib/proto";
 import type { Bin, Selection } from "d3";
 import { sum } from "d3";
 
