@@ -56,7 +56,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     import PaneContent from "../components/PaneContent.svelte";
     import { ResizablePane } from "../components/types";
     import { TagEditor } from "../tag-editor";
-    import TagAddButton from "../tag-editor/tag-options-button/TagAddButton.svelte";
+    //import TagAddButton from "../tag-editor/tag-options-button/TagAddButton.svelte";
     import { ChangeTimer } from "./change-timer";
     import { clearableArray } from "./destroyable";
     import DuplicateLink from "./DuplicateLink.svelte";
@@ -418,21 +418,21 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
      * between panes in the web view, the assumption becomes more and more
      * incorrect. So I'm disabling these functions for now. -- @kaben
      */
-    let snapTags = $tagsCollapsed;
+    //const snapTags = $tagsCollapsed;
 
-    function collapseTags(): void {
+    //function collapseTags(): void {
         //lowerResizer.move([tagsPane, fieldsPane], tagsPane.minHeight);
         //$tagsCollapsed = snapTags = true;
-    }
+    //}
 
-    function expandTags(): void {
+    //function expandTags(): void {
         //lowerResizer.move([tagsPane, fieldsPane], tagsPane.maxHeight);
         //$tagsCollapsed = snapTags = false;
-    }
+    //}
 
     //window.addEventListener("resize", () => snapResizer(snapTags));
 
-    function snapResizer(collapse: boolean): void {
+    //function snapResizer(collapse: boolean): void {
         //if (collapse) {
         //    collapseTags();
         //    bridgeCommand("collapseTags");
@@ -440,9 +440,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         //    expandTags();
         //    bridgeCommand("expandTags");
         //}
-    }
-
-
+    //}
 
     const revFieldStores: Writable<string>[] = [];
     let revFieldNames: string[] = [];
@@ -476,8 +474,6 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     $: revRichTextInputs = revRichTextInputs.filter(Boolean);
     $: revPlainTextInputs = revPlainTextInputs.filter(Boolean);
     $: revTagAmount = $revTags.length;
-
-
 
     export function setRevFields(fs: [string, string][]): void {
         // this is a bit of a mess -- when moving to Rust calls, we should make
@@ -572,7 +568,6 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         /* this will always be a key save */
         revFieldSave.fireImmediately();
     }
-
 </script>
 
 <!--
@@ -776,11 +771,7 @@ the AddCards dialog) should be implemented in the user of this component.
         }}
     >
         <PaneContent>
-            <TagEditor
-                {tags}
-                bind:this={tagEditor}
-                on:tagsupdate={saveTags}
-            />
+            <TagEditor {tags} bind:this={tagEditor} on:tagsupdate={saveTags} />
         </PaneContent>
     </Pane>
 
@@ -792,9 +783,7 @@ the AddCards dialog) should be implemented in the user of this component.
         {clientHeight}
         bind:this={reviewResizer}
     >
-        <div class="review-info">
-            Review Info
-        </div>
+        <div class="review-info">Review Info</div>
     </HorizontalResizer>
 
     <Pane
@@ -840,7 +829,8 @@ the AddCards dialog) should be implemented in the user of this component.
                             <LabelContainer
                                 collapsed={revFieldsCollapsed[index]}
                                 on:toggle={async () => {
-                                    revFieldsCollapsed[index] = !revFieldsCollapsed[index];
+                                    revFieldsCollapsed[index] =
+                                        !revFieldsCollapsed[index];
 
                                     const defaultInput = !revPlainTextDefaults[index]
                                         ? revRichTextInputs[index]
@@ -868,8 +858,10 @@ the AddCards dialog) should be implemented in the user of this component.
                                     {#if revPlainTextDefaults[index]}
                                         <RichTextBadge
                                             show={!revFieldsCollapsed[index] &&
-                                                (revFields[index] === $revHoveredField ||
-                                                    revFields[index] === $revFocusedField)}
+                                                (revFields[index] ===
+                                                    $revHoveredField ||
+                                                    revFields[index] ===
+                                                        $revFocusedField)}
                                             bind:off={revRichTextsHidden[index]}
                                             on:toggle={async () => {
                                                 revRichTextsHidden[index] =
@@ -885,8 +877,10 @@ the AddCards dialog) should be implemented in the user of this component.
                                     {:else}
                                         <PlainTextBadge
                                             show={!revFieldsCollapsed[index] &&
-                                                (revFields[index] === $revHoveredField ||
-                                                    revFields[index] === $revFocusedField)}
+                                                (revFields[index] ===
+                                                    $revHoveredField ||
+                                                    revFields[index] ===
+                                                        $revFocusedField)}
                                             bind:off={revPlainTextsHidden[index]}
                                             on:toggle={async () => {
                                                 revPlainTextsHidden[index] =
