@@ -363,6 +363,10 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
             saveRevFieldNow,
             getRevId,
             setRevId,
+            setFieldsPaneHeight,
+            setTagsPaneHeight,
+            setReviewPaneHeight,
+            setReviewTagsPaneHeight,
 
             ...oldEditorAdapter,
         });
@@ -418,7 +422,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
      * between panes in the web view, the assumption becomes more and more
      * incorrect. So I'm disabling these functions for now. -- @kaben
      */
-    //const snapTags = $tagsCollapsed;
+    //let snapTags = $tagsCollapsed;
 
     //function collapseTags(): void {
     //lowerResizer.move([tagsPane, fieldsPane], tagsPane.minHeight);
@@ -453,6 +457,10 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     const revTags = writable<string[]>([]);
     let revId: number | null = null;
     const revFieldSave = new ChangeTimer();
+    const fieldsPaneResizeSave = new ChangeTimer();
+    const tagsPaneResizeSave = new ChangeTimer();
+    const reviewPaneResizeSave = new ChangeTimer();
+    const reviewTagsPaneResizeSave = new ChangeTimer();
 
     let reviewResizer: HorizontalResizer;
     const reviewPane = new ResizablePane();
@@ -474,6 +482,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     $: revRichTextInputs = revRichTextInputs.filter(Boolean);
     $: revPlainTextInputs = revPlainTextInputs.filter(Boolean);
     $: revTagAmount = $revTags.length;
+
 
     export function setRevFields(fs: [string, string][]): void {
         // this is a bit of a mess -- when moving to Rust calls, we should make
@@ -539,6 +548,24 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         revId = rid;
     }
 
+    export function saveRevFieldNow(): void {
+        /* this will always be a key save */
+        revFieldSave.fireImmediately();
+    }
+
+    export function setFieldsPaneHeight(height: number): void {
+        fieldsPane.resizable.getHeightResizer().setSize(height);
+    }
+    export function setTagsPaneHeight(height: number): void {
+        tagsPane.resizable.getHeightResizer().setSize(height);
+    }
+    export function setReviewPaneHeight(height: number): void {
+        reviewPane.resizable.getHeightResizer().setSize(height);
+    }
+    export function setReviewTagsPaneHeight(height: number): void {
+        reviewTagsPane.resizable.getHeightResizer().setSize(height);
+    }
+
     function getRevId(): number | null {
         return revId;
     }
@@ -564,10 +591,27 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         );
     }
 
-    export function saveRevFieldNow(): void {
-        /* this will always be a key save */
-        revFieldSave.fireImmediately();
+    function updateFieldsPaneHeight(height: number): void {
+        fieldsPaneResizeSave.schedule(
+            () => bridgeCommand(`paneResize:fieldsPane:${height}`), 600,
+        );
     }
+    function updateTagsPaneHeight(height: number): void {
+        tagsPaneResizeSave.schedule(
+            () => bridgeCommand(`paneResize:tagsPane:${height}`), 600,
+        );
+    }
+    function updateReviewPaneHeight(height: number): void {
+        reviewPaneResizeSave.schedule(
+            () => bridgeCommand(`paneResize:reviewPane:${height}`), 600,
+        );
+    }
+    function updateReviewTagsPaneHeight(height: number): void {
+        reviewTagsPaneResizeSave.schedule(
+            () => bridgeCommand(`paneResize:reviewTagsPane:${height}`), 600,
+        );
+    }
+
 </script>
 
 <!--
@@ -598,6 +642,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={fieldsPane.resizable}
         on:resize={(e) => {
             fieldsPane.height = e.detail.height;
+            updateFieldsPaneHeight(fieldsPane.height);
         }}
     >
         <PaneContent>
@@ -770,6 +815,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={tagsPane.resizable}
         on:resize={(e) => {
             tagsPane.height = e.detail.height;
+            updateTagsPaneHeight(tagsPane.height);
         }}
     >
         <PaneContent>
@@ -792,6 +838,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={reviewPane.resizable}
         on:resize={(e) => {
             reviewPane.height = e.detail.height;
+            updateReviewPaneHeight(reviewPane.height);
         }}
     >
         <PaneContent>
@@ -959,7 +1006,9 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={reviewTagsResizer}
     >
         <div class="tags-info">
-            Review Tags
+            {@html revTagAmount > 0
+                ? `${revTagAmount} Review ${tr.editingTags()}`
+                : ""}
         </div>
     </HorizontalResizer>
 
@@ -967,6 +1016,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={reviewTagsPane.resizable}
         on:resize={(e) => {
             reviewTagsPane.height = e.detail.height;
+            updateReviewTagsPaneHeight(reviewTagsPane.height);
         }}
     >
         <PaneContent>

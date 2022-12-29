@@ -465,6 +465,12 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             if not self.addMode:
                 self._save_current_note()
 
+        elif cmd.startswith("paneResize"):
+            (_, pane_name, pane_height) = cmd.split(":")
+
+            self.mw.col.set_config(f"editorPaneHeight.{pane_name}", pane_height)
+            self.mw.col.db.commit()
+
         elif cmd in self._links:
             return self._links[cmd](self)
 
@@ -562,6 +568,10 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             "ann::fubar",
             "ann::fubaz",
         ]
+        fields_pane_height = self.mw.col.get_config("editorPaneHeight.fieldsPane", 600)
+        tags_pane_height = self.mw.col.get_config("editorPaneHeight.tagsPane", 600)
+        review_pane_height = self.mw.col.get_config("editorPaneHeight.reviewPane", 600)
+        review_tags_pane_height = self.mw.col.get_config("editorPaneHeight.reviewTagsPane", 600)
 
         js = f"""
             saveSession();
@@ -587,6 +597,10 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             setRevFonts({json.dumps(rev_fonts)});
             setRevId({json.dumps(rev_id)});
             setRevTags({json.dumps(rev_tags)});
+            setFieldsPaneHeight({fields_pane_height});
+            setTagsPaneHeight({tags_pane_height});
+            setReviewPaneHeight({review_pane_height});
+            setReviewTagsPaneHeight({review_tags_pane_height});
             """
 
         if self.addMode:
