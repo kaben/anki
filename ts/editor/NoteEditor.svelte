@@ -421,25 +421,25 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     //const snapTags = $tagsCollapsed;
 
     //function collapseTags(): void {
-        //lowerResizer.move([tagsPane, fieldsPane], tagsPane.minHeight);
-        //$tagsCollapsed = snapTags = true;
+    //lowerResizer.move([tagsPane, fieldsPane], tagsPane.minHeight);
+    //$tagsCollapsed = snapTags = true;
     //}
 
     //function expandTags(): void {
-        //lowerResizer.move([tagsPane, fieldsPane], tagsPane.maxHeight);
-        //$tagsCollapsed = snapTags = false;
+    //lowerResizer.move([tagsPane, fieldsPane], tagsPane.maxHeight);
+    //$tagsCollapsed = snapTags = false;
     //}
 
     //window.addEventListener("resize", () => snapResizer(snapTags));
 
     //function snapResizer(collapse: boolean): void {
-        //if (collapse) {
-        //    collapseTags();
-        //    bridgeCommand("collapseTags");
-        //} else {
-        //    expandTags();
-        //    bridgeCommand("expandTags");
-        //}
+    //if (collapse) {
+    //    collapseTags();
+    //    bridgeCommand("collapseTags");
+    //} else {
+    //    expandTags();
+    //    bridgeCommand("expandTags");
+    //}
     //}
 
     const revFieldStores: Writable<string>[] = [];
@@ -760,7 +760,9 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={lowerResizer}
     >
         <div class="tags-info">
-            {@html tagAmount > 0 ? `${tagAmount} Note ${tr.editingTags()}` : ""}
+            {@html tagAmount > 0
+                ? `${tagAmount} Note ${tr.editingTags()}`
+                : ""}
         </div>
     </HorizontalResizer>
 
