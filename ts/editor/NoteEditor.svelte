@@ -483,7 +483,6 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     $: revPlainTextInputs = revPlainTextInputs.filter(Boolean);
     $: revTagAmount = $revTags.length;
 
-
     export function setRevFields(fs: [string, string][]): void {
         // this is a bit of a mess -- when moving to Rust calls, we should make
         // sure to have two backend endpoints for:
@@ -593,25 +592,28 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     function updateFieldsPaneHeight(height: number): void {
         fieldsPaneResizeSave.schedule(
-            () => bridgeCommand(`paneResize:fieldsPane:${height}`), 600,
+            () => bridgeCommand(`paneResize:fieldsPane:${height}`),
+            600,
         );
     }
     function updateTagsPaneHeight(height: number): void {
         tagsPaneResizeSave.schedule(
-            () => bridgeCommand(`paneResize:tagsPane:${height}`), 600,
+            () => bridgeCommand(`paneResize:tagsPane:${height}`),
+            600,
         );
     }
     function updateReviewPaneHeight(height: number): void {
         reviewPaneResizeSave.schedule(
-            () => bridgeCommand(`paneResize:reviewPane:${height}`), 600,
+            () => bridgeCommand(`paneResize:reviewPane:${height}`),
+            600,
         );
     }
     function updateReviewTagsPaneHeight(height: number): void {
         reviewTagsPaneResizeSave.schedule(
-            () => bridgeCommand(`paneResize:reviewTagsPane:${height}`), 600,
+            () => bridgeCommand(`paneResize:reviewTagsPane:${height}`),
+            600,
         );
     }
-
 </script>
 
 <!--
@@ -805,9 +807,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={lowerResizer}
     >
         <div class="tags-info">
-            {@html tagAmount > 0
-                ? `${tagAmount} Note ${tr.editingTags()}`
-                : ""}
+            {@html tagAmount > 0 ? `${tagAmount} Note ${tr.editingTags()}` : ""}
         </div>
     </HorizontalResizer>
 
@@ -1006,9 +1006,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={reviewTagsResizer}
     >
         <div class="tags-info">
-            {@html revTagAmount > 0
-                ? `${revTagAmount} Review ${tr.editingTags()}`
-                : ""}
+            {@html revTagAmount > 0 ? `${revTagAmount} Review ${tr.editingTags()}` : ""}
         </div>
     </HorizontalResizer>
 

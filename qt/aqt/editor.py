@@ -571,7 +571,9 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         fields_pane_height = self.mw.col.get_config("editorPaneHeight.fieldsPane", 600)
         tags_pane_height = self.mw.col.get_config("editorPaneHeight.tagsPane", 600)
         review_pane_height = self.mw.col.get_config("editorPaneHeight.reviewPane", 600)
-        review_tags_pane_height = self.mw.col.get_config("editorPaneHeight.reviewTagsPane", 600)
+        review_tags_pane_height = self.mw.col.get_config(
+            "editorPaneHeight.reviewTagsPane", 600
+        )
 
         js = f"""
             saveSession();
