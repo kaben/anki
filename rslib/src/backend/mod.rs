@@ -41,7 +41,6 @@ use tokio::runtime::{
     Runtime, {self},
 };
 
-use crate::pb::revlog::revlog_service::Service as RevlogService;
 use self::{
     card::CardsService,
     cardrendering::CardRenderingService,
@@ -62,6 +61,7 @@ use self::{
     sync::{SyncService, SyncState},
     tags::TagsService,
 };
+use crate::pb::revlog::revlog_service::Service as RevlogService;
 use crate::{backend::dbproxy::db_command_bytes, pb, pb::backend::ServiceIndex, prelude::*};
 
 pub struct Backend {

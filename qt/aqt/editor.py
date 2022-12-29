@@ -527,16 +527,41 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         # - Switch to review.tags.
         # - Move into f-string below.
 
-        rev_flds = [{'name': 'Review Feedback', 'ord': 0, 'sticky': False, 'rtl': False, 'font': 'Liberation Sans', 'size': 20, 'description': '', 'plainText': False, 'collapsed': False, 'media': []},]
-        rev_data = [('Review Feedback', '220731-1253: trouble: arithmetic: took reciprocal of correct ratio; context: intending to compute \\(\\frac{1}{\\sin \\theta}\\) I instead computed \\(\\sin \\theta\\).'),]
-        rev_collapsed = [False,]
-        rev_plain_texts = [False,]
-        rev_descriptions = ['Review feedback']
-        rev_fonts = [('Liberation Sans', 20, False),]
+        rev_flds = [
+            {
+                "name": "Review Feedback",
+                "ord": 0,
+                "sticky": False,
+                "rtl": False,
+                "font": "Liberation Sans",
+                "size": 20,
+                "description": "",
+                "plainText": False,
+                "collapsed": False,
+                "media": [],
+            },
+        ]
+        rev_data = [
+            (
+                "Review Feedback",
+                "220731-1253: trouble: arithmetic: took reciprocal of correct ratio; context: intending to compute \\(\\frac{1}{\\sin \\theta}\\) I instead computed \\(\\sin \\theta\\).",
+            ),
+        ]
+        rev_collapsed = [
+            False,
+        ]
+        rev_plain_texts = [
+            False,
+        ]
+        rev_descriptions = ["Review feedback"]
+        rev_fonts = [
+            ("Liberation Sans", 20, False),
+        ]
         rev_id = 23232323232
-        rev_tags = ['ann::fubar', 'ann::fubaz',]
-
-
+        rev_tags = [
+            "ann::fubar",
+            "ann::fubaz",
+        ]
 
         js = f"""
             saveSession();
