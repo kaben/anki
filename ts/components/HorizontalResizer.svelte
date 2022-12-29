@@ -68,7 +68,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
     function onMove_pushOtherPanes(movementY: number): void {
         let i = index;
         let j = after_index;
-        while (true) {
+        for (;;) {
             let dy = 0;
             /* Look for the first "before" pane that can be resized. */
             for (; i >= 0; i--) {
@@ -107,7 +107,9 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
             /* If i < 0 here then no "before" panes can be resized. Similarly if
              * j >= panes.length then no "after" panes can be resized.
              */
-            if ((i < 0) || (j >= panes.length) || (dy == 0)) { break; }
+            if (i < 0 || j >= panes.length || dy == 0) {
+                break;
+            }
             /* If the "before" pane isn't resized first during fast upward mouse
              * motion, or the "after" pane isn't resized first during fast
              * downward motion, there's some glitching in the web view.
@@ -128,7 +130,9 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
              * towoard reszing by movementY. We step when either the goal is
              * reached or we can't make any more progress.
              */
-            if ((movementY == 0) || (resized == 0)) { break; }
+            if (movementY == 0 || resized == 0) {
+                break;
+            }
         }
     }
 
@@ -155,7 +159,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
         /* Try to avoid double locking in order to silence error:
          * "Uncaught (in promise) InUseAttributeError: Pointer is already locked."
          */
-        if (!!document.pointerLockElement) {
+        if (document.pointerLockElement) {
             this.requestPointerLock();
         }
 
