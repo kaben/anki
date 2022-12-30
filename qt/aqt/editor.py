@@ -483,7 +483,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             if (not self.review) or (rid != self.review.id):
                 print("Editor.onBridgeCmd(): ignored late review blur because:")
                 if not self.review:
-                    print(f"Editor.onBridgeCmd(): self.review is unset.")
+                    print("Editor.onBridgeCmd(): self.review is unset.")
                 elif rid != self.review.id:
                     print(
                         f"Editor.onBridgeCmd(): review IDs don't match: rid: {rid}, self.review.id: {self.review.id}"
