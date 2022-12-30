@@ -3,11 +3,8 @@
 
 # coding: utf-8
 
-from anki import revlog_pb2
+from anki.revlog import RevlogEntry, RevlogId
 from tests.shared import getEmptyCol
-
-RevlogEntry = revlog_pb2.RevlogEntry
-RevlogId = revlog_pb2.RevlogId
 
 
 def make_test_notes(col):
@@ -62,7 +59,7 @@ def test_get_revlog_entry():
     revlog_id = revlog_row[0]
     # Get the same data (for the last review) via the backend command
     # `get_revlog_entry()`.
-    revlog_entry = col._backend.get_revlog_entry(revlog_id)
+    revlog_entry = col.get_revlog_entry(RevlogId(revlog_id))
 
     # Make sure the data matches.
     assert revlog_row[0] == revlog_entry.id
@@ -118,10 +115,7 @@ def test_update_revlog_entries():
         feedback="this is some more feedback",
         tags=["tag3", "tag4"],
     )
-    col._backend.update_revlog_entries(
-        revlog_entries=[new_revlog_entry],
-        skip_undo_entry=False,
-    )
+    col.update_revlog_entry(new_revlog_entry)
     revlog_rows = col.db.all(
         f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM revlog WHERE id = {revlog_id}"
     )

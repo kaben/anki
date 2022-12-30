@@ -11,6 +11,7 @@ from anki.cards import Card, CardId
 from anki.collection import Collection, Config, OpChanges
 from anki.consts import *
 from anki.notes import Note, NoteId
+from anki.revlog import RevlogEntry, RevlogId
 from aqt import gui_hooks
 from aqt.browser.table import Columns, ItemId, SearchContext
 from aqt.browser.table.model import DataModel
@@ -102,6 +103,14 @@ class Table:
             return None
         return self._model.get_card(self._selected()[0])
 
+    def get_single_selected_review(self) -> RevlogEntry | None:
+        """If there is only one row selected return its review, else None.
+        This may be a different one than the current review."""
+        if self.len_selection() != 1:
+            return None
+        review = self._model.get_review(self._selected()[0])
+        return review
+
     # Get ids
 
     def get_selected_card_ids(self) -> Sequence[CardId]:
@@ -109,6 +118,9 @@ class Table:
 
     def get_selected_note_ids(self) -> Sequence[NoteId]:
         return self._model.get_note_ids(self._selected())
+
+    def get_selected_review_ids(self) -> Sequence[RevlogId]:
+        return self._model.get_review_ids(self._selected())
 
     def get_card_ids_from_selected_note_ids(self) -> Sequence[CardId]:
         return self._state.card_ids_from_note_ids(self.get_selected_note_ids())

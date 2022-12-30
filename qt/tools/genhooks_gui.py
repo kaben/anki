@@ -999,6 +999,27 @@ gui_hooks.webview_did_inject_style_into_page.append(mytest)
         legacy_hook="tagsUpdated",
     ),
     Hook(
+        name="editor_did_fire_review_typing_timer",
+        args=["review: anki.revlog.RevlogEntry"],
+    ),
+    Hook(
+        name="editor_did_focus_review_field",
+        args=["review: anki.revlog.RevlogEntry"],
+    ),
+    Hook(
+        name="editor_did_unfocus_review_field",
+        args=["changed: bool", "review: anki.revlog.RevlogEntry"],
+        return_type="bool",
+    ),
+    Hook(
+        name="editor_did_load_review",
+        args=["editor: aqt.editor.Editor"],
+    ),
+    Hook(
+        name="editor_did_update_review_tags",
+        args=["review: anki.revlog.RevlogEntry"],
+    ),
+    Hook(
         name="editor_will_munge_html",
         args=["txt: str", "editor: aqt.editor.Editor"],
         return_type="str",

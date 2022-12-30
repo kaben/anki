@@ -571,7 +571,7 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     function saveRevTags({ detail }: CustomEvent): void {
         revTagAmount = detail.tags.filter((tag: string) => tag != "").length;
-        bridgeCommand(`saveRevTags:${JSON.stringify(detail.tags)}`);
+        bridgeCommand(`revSaveTags:${JSON.stringify(detail.tags)}`);
     }
 
     function transformRevContentBeforeSave(content: string): string {

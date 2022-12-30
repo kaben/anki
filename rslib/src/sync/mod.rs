@@ -35,6 +35,17 @@ use crate::{
     tags::{join_tags, split_tags, Tag},
 };
 
+// Syncing broke because I've added three additional fields to the `revlog` database table and
+// `revlog::RevlogEntry`, and these changes aren't compatible with the official Anki db schema and
+// sync server.
+//
+// So instead of syncing `revlog::RevlogEntry`, I've added a new version below,
+// `sync::RevlogEntry`, that works with the official Anki sync server. I've added code that copies
+// data back and forth between the two versions, omitting the new fields.
+//
+// FIXME@kaben: at some point I'll want to make a local sync server that supports both versions of
+// RevlogEntry. I'll want it to sync the additional fields, but also work standard versions of Anki
+// that don't have the new fields.
 #[derive(Serialize_tuple, Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct RevlogEntry {
     pub id: RevlogId,

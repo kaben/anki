@@ -61,6 +61,7 @@ from anki.lang import FormatTimeSpan
 from anki.media import MediaManager, media_paths_from_col_path
 from anki.models import ModelManager, NotetypeDict, NotetypeId
 from anki.notes import Note, NoteId
+from anki.revlog import RevlogEntry, RevlogId
 from anki.scheduler.v1 import Scheduler as V1Scheduler
 from anki.scheduler.v2 import Scheduler as V2Scheduler
 from anki.scheduler.v3 import Scheduler as V3Scheduler
@@ -455,6 +456,24 @@ class Collection(DeprecatedNamesMixin):
 
     # Object helpers
     ##########################################################################
+
+    def get_revlog_entry(self, revlog_id: RevlogId) -> RevlogEntry:
+        result = self._backend.get_revlog_entry(revlog_id)
+        return result
+
+    def update_revlog_entries(self, revlog_entries: Sequence[RevlogEntry]) -> OpChanges:
+        """Save card changes to database, and add an undo entry.
+        Unlike card.flush(), this will invalidate any current checkpoint."""
+        result = self._backend.update_revlog_entries(
+            revlog_entries=revlog_entries, skip_undo_entry=False
+        )
+        return result
+
+    def update_revlog_entry(self, revlog_entry: RevlogEntry) -> OpChanges:
+        """Save card changes to database, and add an undo entry.
+        Unlike card.flush(), this will invalidate any current checkpoint."""
+        result = self.update_revlog_entries([revlog_entry])
+        return result
 
     def get_card(self, id: CardId) -> Card:
         return Card(self, id)

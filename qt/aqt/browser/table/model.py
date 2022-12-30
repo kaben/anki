@@ -13,6 +13,7 @@ from anki.collection import Collection
 from anki.consts import *
 from anki.errors import BackendError, NotFoundError
 from anki.notes import Note, NoteId
+from anki.revlog import RevlogEntry, RevlogId
 from aqt import gui_hooks
 from aqt.browser.table import Cell, CellRow, Column, ItemId, SearchContext
 from aqt.browser.table.state import ItemState
@@ -192,6 +193,14 @@ class DataModel(QAbstractTableModel):
             return nid_list[0]
         return None
 
+    def get_review_ids(self, indices: list[QModelIndex]) -> Sequence[RevlogId]:
+        return self._state.get_review_ids(self.get_items(indices))
+
+    def get_review_id(self, index: QModelIndex) -> RevlogId | None:
+        if rid_list := self._state.get_review_ids([self.get_item(index)]):
+            return rid_list[0]
+        return None
+
     # Get row numbers from items
 
     def get_item_row(self, item: ItemId) -> int | None:
@@ -231,6 +240,15 @@ class DataModel(QAbstractTableModel):
             return None
         try:
             return self._state.get_note(self.get_item(index))
+        except NotFoundError:
+            return None
+
+    def get_review(self, index: QModelIndex) -> RevlogEntry | None:
+        """Try to return the indicated, possibly deleted note."""
+        if not index.isValid():
+            return None
+        try:
+            return self._state.get_review(self.get_item(index))
         except NotFoundError:
             return None
 

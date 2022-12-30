@@ -171,13 +171,14 @@ class Browser(QMainWindow):
                 # fixme: this will leave the splitter shown, but with no current
                 # note being edited
                 note = self.editor.note
+                review = self.editor.review
                 if note:
                     try:
                         note.load()
                     except NotFoundError:
                         self.editor.set_note(None)
                         return
-                    self.editor.set_note(note)
+                    self.editor.set_note(note, review)
 
         if changes.browser_table and changes.card:
             self.card = self.table.get_single_selected_card()
@@ -540,10 +541,13 @@ class Browser(QMainWindow):
         # if there is only one selected card, use it in the editor
         # it might differ from the current card
         self.card = self.table.get_single_selected_card()
+        self.review = self.table.get_single_selected_review()
         self.singleCard = bool(self.card)
         self.form.splitter.widget(1).setVisible(self.singleCard)
         if self.singleCard:
-            self.editor.set_note(self.card.note(), focusTo=self.focusTo)
+            self.editor.set_note(
+                self.card.note(), review=self.review, focusTo=self.focusTo
+            )
             self.focusTo = None
             self.editor.card = self.card
         else:

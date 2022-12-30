@@ -10,6 +10,7 @@ from anki.cards import Card, CardId
 from anki.collection import Collection
 from anki.errors import NotFoundError
 from anki.notes import Note, NoteId
+from anki.revlog import RevlogEntry, RevlogId
 from anki.utils import ids2str
 from aqt.browser.table import Column, ItemId, ItemList
 
@@ -36,8 +37,42 @@ class ItemState(ABC):
             f"select distinct nid from cards where id in {ids2str(items)}"
         )
 
+    def review_ids_from_card_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
+        return self.col.db.list(
+            f"""
+            SELECT DISTINCT id FROM revlog
+            WHERE cid IN {ids2str(items)}
+            """
+        )
+
     def card_ids_from_note_ids(self, items: Sequence[ItemId]) -> Sequence[CardId]:
         return self.col.db.list(f"select id from cards where nid in {ids2str(items)}")
+
+    def review_ids_from_note_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
+        return self.col.db.list(
+            f"""
+            SELECT DISTINCT revlog.id FROM revlog
+            INNER JOIN cards ON revlog.cid = cards.id
+            WHERE cards.nid IN {ids2str(items)}
+            """
+        )
+
+    def note_ids_from_review_ids(self, items: Sequence[ItemId]) -> Sequence[NoteId]:
+        return self.col.db.list(
+            f"""
+            SELECT DISTINCT cards.nid FROM cards
+            INNER JOIN revlog ON cards.id = revlog.cid
+            WHERE revlog.id IN {ids2str(items)}
+            """
+        )
+
+    def card_ids_from_review_ids(self, items: Sequence[ItemId]) -> Sequence[CardId]:
+        return self.col.db.list(
+            f"""
+            SELECT DISTINCT cid FROM revlog
+            WHERE id IN {ids2str(items)}
+            """
+        )
 
     def column_key_at(self, index: int) -> str:
         return self._active_columns[index]
@@ -93,6 +128,10 @@ class ItemState(ABC):
     def get_note(self, item: ItemId) -> Note:
         """Return the item if it's a note or its note if it's a card."""
 
+    @abstractmethod
+    def get_review(self, item: ItemId) -> RevlogEntry:
+        """Return the item if it's a revlog entry or its first revlog entry if it's a card or note."""
+
     # Get ids
 
     @abstractmethod
@@ -112,6 +151,10 @@ class ItemState(ABC):
     @abstractmethod
     def get_note_ids(self, items: Sequence[ItemId]) -> Sequence[NoteId]:
         """Return the note ids for the given item ids."""
+
+    @abstractmethod
+    def get_review_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
+        """Return the revlog entry ids for the given item ids."""
 
     # Toggle
 
@@ -150,6 +193,14 @@ class CardState(ItemState):
     def get_note(self, item: ItemId) -> Note:
         return self.get_card(item).note()
 
+    def get_review(self, item: ItemId) -> RevlogEntry:
+        """Get first review of card."""
+        print(f"CardState.get_review(item: {item})")
+        if rids := self.get_review_ids([item]):
+            print(f"CardState.get_review(): rids: {rids}")
+            return self.col.get_revlog_entry(rids[0])
+        return None
+
     def find_items(
         self, search: str, order: bool | str | Column, reverse: bool
     ) -> Sequence[ItemId]:
@@ -163,6 +214,9 @@ class CardState(ItemState):
 
     def get_note_ids(self, items: Sequence[ItemId]) -> Sequence[NoteId]:
         return super().note_ids_from_card_ids(items)
+
+    def get_review_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
+        return super().review_ids_from_card_ids(items)
 
     def toggle_state(self) -> NoteState:
         return NoteState(self.col)
@@ -199,6 +253,12 @@ class NoteState(ItemState):
     def get_note(self, item: ItemId) -> Note:
         return self.col.get_note(NoteId(item))
 
+    def get_review(self, item: ItemId) -> RevlogEntry:
+        """Get first review of note."""
+        if rids := self.get_review_ids([item]):
+            return self.col.get_revlog_entry(rids[0])
+        return None
+
     def find_items(
         self, search: str, order: bool | str | Column, reverse: bool
     ) -> Sequence[ItemId]:
@@ -212,6 +272,9 @@ class NoteState(ItemState):
 
     def get_note_ids(self, items: Sequence[ItemId]) -> Sequence[NoteId]:
         return cast(Sequence[NoteId], items)
+
+    def get_review_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
+        return super().review_ids_from_note_ids(items)
 
     def toggle_state(self) -> CardState:
         return CardState(self.col)

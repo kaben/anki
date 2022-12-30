@@ -32,11 +32,13 @@ from anki.consts import MODEL_CLOZE
 from anki.hooks import runFilter
 from anki.httpclient import HttpClient
 from anki.notes import Note, NoteFieldsCheckResult
+from anki.revlog import RevlogEntry
 from anki.utils import checksum, is_lin, is_win, namedtmp
 from aqt import AnkiQt, colors, gui_hooks
 from aqt.operations import QueryOp
 from aqt.operations.note import update_note
 from aqt.operations.notetype import update_notetype_legacy
+from aqt.operations.revlog import update_review
 from aqt.qt import *
 from aqt.sound import av_player
 from aqt.theme import theme_manager
@@ -112,6 +114,7 @@ class Editor:
         self.widget = widget
         self.parentWindow = parentWindow
         self.note: Note | None = None
+        self.review: RevlogEntry | None = None
         # legacy argument provided?
         if addMode is not None:
             editor_mode = EditorMode.ADD_CARDS if addMode else EditorMode.EDIT_CURRENT
@@ -471,6 +474,60 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             self.mw.col.set_config(f"editorPaneHeight.{pane_name}", pane_height)
             self.mw.col.db.commit()
 
+        elif cmd.startswith("revBlur") or cmd.startswith("revKey"):
+            (type, _, rid_str, txt) = cmd.split(":", 3)
+            try:
+                rid = int(rid_str)
+            except ValueError:
+                rid = 0
+            if (not self.review) or (rid != self.review.id):
+                print("Editor.onBridgeCmd(): ignored late review blur because:")
+                if not self.review:
+                    print(f"Editor.onBridgeCmd(): self.review is unset.")
+                elif rid != self.review.id:
+                    print(
+                        f"Editor.onBridgeCmd(): review IDs don't match: rid: {rid}, self.review.id: {self.review.id}"
+                    )
+                return
+
+            self.review.feedback = self.mungeHTML(txt)
+
+            if not self.addMode:
+                self._save_current_review()
+            if type == "revBlur":
+                # run any filters
+                if gui_hooks.editor_did_unfocus_review_field(False, self.review):
+                    # something updated the review; update it after a subsequent focus
+                    # event has had time to fire
+                    self.mw.progress.timer(
+                        # FIXME@kaben:
+                        # Issues: I'm currently overusing loadNote to also load
+                        # review. Problem: the function optionally focuses a
+                        # note field, which I don't want to do while editing
+                        # the annotation.
+                        100,
+                        self.loadReviewWithoutFocus,
+                        False,
+                        parent=self.widget,
+                    )
+                else:
+                    self._check_and_update_duplicate_display_async()
+            else:
+                gui_hooks.editor_did_fire_review_typing_timer(self.review)
+                self._check_and_update_duplicate_display_async()
+
+        elif cmd.startswith("revFocus"):
+            gui_hooks.editor_did_focus_review_field(self.review)
+
+        elif cmd.startswith("revSaveTags"):
+            (type, tagsJson) = cmd.split(":", 1)
+            tags = json.loads(tagsJson)
+            self.review.tags[:] = tags
+
+            gui_hooks.editor_did_update_review_tags(self.review)
+            if not self.addMode:
+                self._save_current_review()
+
         elif cmd in self._links:
             return self._links[cmd](self)
 
@@ -484,10 +541,15 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
     ######################################################################
 
     def set_note(
-        self, note: Note | None, hide: bool = True, focusTo: int | None = None
+        self,
+        note: Note | None,
+        review: RevlogEntry | None = None,
+        hide: bool = True,
+        focusTo: int | None = None,
     ) -> None:
         "Make NOTE the current note."
         self.note = note
+        self.review = review
         self.currentField = None
         if self.note:
             self.loadNote(focusTo=focusTo)
@@ -495,6 +557,9 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             self.widget.hide()
 
     def loadNoteKeepingFocus(self) -> None:
+        self.loadNote(self.currentField)
+
+    def loadReviewWithoutFocus(self) -> None:
         self.loadNote(self.currentField)
 
     def loadNote(self, focusTo: int | None = None) -> None:
@@ -529,29 +594,11 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         text_color = self.mw.pm.profile.get("lastTextColor", "#0000ff")
         highlight_color = self.mw.pm.profile.get("lastHighlightColor", "#0000ff")
 
-        # FIXME@kaben: reusing note.tags as standin for review.tags.
-        # - Switch to review.tags.
-        # - Move into f-string below.
-
-        rev_flds = [
-            {
-                "name": "Review Feedback",
-                "ord": 0,
-                "sticky": False,
-                "rtl": False,
-                "font": "Liberation Sans",
-                "size": 20,
-                "description": "",
-                "plainText": False,
-                "collapsed": False,
-                "media": [],
-            },
-        ]
+        # FIXME@kaben: Some of the data below is bogus/hardwired (the field
+        # name, description and font info). I'll want to add some GUI to
+        # preferences to allow the user to set this info.
         rev_data = [
-            (
-                "Review Feedback",
-                "220731-1253: trouble: arithmetic: took reciprocal of correct ratio; context: intending to compute \\(\\frac{1}{\\sin \\theta}\\) I instead computed \\(\\sin \\theta\\).",
-            ),
+            ("Review Feedback", self.review.feedback if self.review else "(no review)"),
         ]
         rev_collapsed = [
             False,
@@ -563,11 +610,13 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         rev_fonts = [
             ("Liberation Sans", 20, False),
         ]
-        rev_id = 23232323232
-        rev_tags = [
-            "ann::fubar",
-            "ann::fubaz",
-        ]
+        rev_id = None
+        rev_tags = []
+        if self.review:
+            rev_id = self.review.id
+            if self.review.tags:
+                rev_tags = list(self.review.tags)
+
         fields_pane_height = self.mw.col.get_config("editorPaneHeight.fieldsPane", 600)
         tags_pane_height = self.mw.col.get_config("editorPaneHeight.tagsPane", 600)
         review_pane_height = self.mw.col.get_config("editorPaneHeight.reviewPane", 600)
@@ -620,6 +669,12 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
     def _save_current_note(self) -> None:
         "Call after note is updated with data from webview."
         update_note(parent=self.widget, note=self.note).run_in_background(
+            initiator=self
+        )
+
+    def _save_current_review(self) -> None:
+        "Call after review is updated with data from webview."
+        update_review(parent=self.widget, review=self.review).run_in_background(
             initiator=self
         )
 
