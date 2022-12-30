@@ -26,7 +26,7 @@ use crate::{
     notetype::{Notetype, NotetypeSchema11},
     pb::sync::{sync_status_response, SyncStatusResponse},
     prelude::*,
-    revlog::RevlogEntry,
+    revlog::{RevlogEntry as RevlogEntryX, RevlogReviewKind},
     serde::{default_on_invalid, deserialize_int_from_number},
     storage::{
         card::data::{card_data_string, CardData},
@@ -34,6 +34,64 @@ use crate::{
     },
     tags::{join_tags, split_tags, Tag},
 };
+
+#[derive(Serialize_tuple, Deserialize, Debug, Default, PartialEq, Eq)]
+pub struct RevlogEntry {
+    pub id: RevlogId,
+    pub cid: CardId,
+    pub usn: Usn,
+    /// - In the V1 scheduler, 3 represents easy in the learning case.
+    /// - 0 represents manual rescheduling.
+    #[serde(rename = "ease")]
+    pub button_chosen: u8,
+    /// Positive values are in days, negative values in seconds.
+    #[serde(rename = "ivl", deserialize_with = "deserialize_int_from_number")]
+    pub interval: i32,
+    /// Positive values are in days, negative values in seconds.
+    #[serde(rename = "lastIvl", deserialize_with = "deserialize_int_from_number")]
+    pub last_interval: i32,
+    /// Card's ease after answering, stored as 10x the %, eg 2500 represents 250%.
+    #[serde(rename = "factor", deserialize_with = "deserialize_int_from_number")]
+    pub ease_factor: u32,
+    /// Amount of milliseconds taken to answer the card.
+    #[serde(rename = "time", deserialize_with = "deserialize_int_from_number")]
+    pub taken_millis: u32,
+    #[serde(rename = "type", default, deserialize_with = "default_on_invalid")]
+    pub review_kind: RevlogReviewKind,
+}
+
+impl From<RevlogEntryX> for RevlogEntry {
+    fn from(e: RevlogEntryX) -> Self {
+        RevlogEntry {
+            id: e.id,
+            cid: e.cid,
+            usn: e.usn,
+            button_chosen: e.button_chosen,
+            interval: e.interval,
+            last_interval: e.last_interval,
+            ease_factor: e.ease_factor,
+            taken_millis: e.taken_millis,
+            review_kind: e.review_kind,
+        }
+    }
+}
+
+impl From<RevlogEntry> for RevlogEntryX {
+    fn from(e: RevlogEntry) -> Self {
+        RevlogEntryX {
+            id: e.id,
+            cid: e.cid,
+            usn: e.usn,
+            button_chosen: e.button_chosen,
+            interval: e.interval,
+            last_interval: e.last_interval,
+            ease_factor: e.ease_factor,
+            taken_millis: e.taken_millis,
+            review_kind: e.review_kind,
+            ..Default::default()
+        }
+    }
+}
 
 pub static SYNC_VERSION_MIN: u8 = 7;
 pub static SYNC_VERSION_MAX: u8 = 10;
@@ -107,6 +165,8 @@ pub struct UnchunkedChanges {
     creation_stamp: Option<TimestampSecs>,
 }
 
+// FIXME@kaben: Eventually I'll want to sync to a local server that supports the extended version
+// of RevlogEntry, at which time I'll need a second version of Chunk to support the local server.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Chunk {
     #[serde(default)]
@@ -929,7 +989,7 @@ impl Collection {
 
     fn merge_revlog(&self, entries: Vec<RevlogEntry>) -> Result<()> {
         for entry in entries {
-            self.storage.add_revlog_entry(&entry, false)?;
+            self.storage.add_revlog_entry(&entry.into(), false)?;
         }
         Ok(())
     }
@@ -1037,7 +1097,7 @@ impl Collection {
                 self.storage.get_revlog_entry(id).map(|e| {
                     let mut e = e.unwrap();
                     e.usn = new_usn.unwrap_or(e.usn);
-                    e
+                    e.into()
                 })
             })
             .collect::<Result<_>>()?;
@@ -1412,7 +1472,7 @@ mod test {
 
         // mock revlog entry
         col1.storage.add_revlog_entry(
-            &RevlogEntry {
+            &RevlogEntryX {
                 id: RevlogId(123),
                 cid: CardId(456),
                 usn: Usn(-1),
