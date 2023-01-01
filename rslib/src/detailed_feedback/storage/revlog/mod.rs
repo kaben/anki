@@ -44,3 +44,46 @@ impl SqliteStorage {
     //        .collect()
     //}
 }
+
+/* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or
+ * storage systems. There's a lot of copy-paste here, which I'm okay with for now.
+ */
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{collection::open_test_collection, types::Usn};
+
+    #[test]
+    fn update_revlog_entry() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+        review.usn = Usn(1234);
+        review.mtime = TimestampSecs(5678);
+        review.feedback = "feedback".to_string();
+        review.tags = ["fubar".to_string(), "fubaz".to_string()].to_vec();
+
+        // Higher-level code changes usn, but this call shouldn't.
+        col.storage.update_revlog_entry(&review)?;
+
+        reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+        assert_eq!(reviews[0].usn, Usn(1234));
+        assert_eq!(reviews[0].mtime, TimestampSecs(5678));
+        assert_eq!(reviews[0].feedback, "feedback".to_string());
+        assert_eq!(
+            reviews[0].tags,
+            ["fubar".to_string(), "fubaz".to_string()].to_vec()
+        );
+
+        Ok(())
+    }
+}

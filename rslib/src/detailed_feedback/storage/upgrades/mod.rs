@@ -53,6 +53,9 @@ impl SqliteStorage {
     }
 }
 
+/* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or
+ * storage systems.
+ */
 #[cfg(test)]
 mod test {
     #[test]

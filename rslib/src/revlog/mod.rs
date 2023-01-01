@@ -32,7 +32,7 @@ impl From<TimestampMillis> for RevlogId {
     }
 }
 
-#[derive(Serialize_tuple, Deserialize, Debug, Default, PartialEq, Eq)]
+#[derive(Serialize_tuple, Clone, Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct RevlogEntry {
     pub id: RevlogId,
     pub cid: CardId,

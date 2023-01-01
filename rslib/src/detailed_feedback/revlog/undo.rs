@@ -105,11 +105,216 @@ impl Collection {
     }
 }
 
+/* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or
+ * storage systems. There's a lot of copy-paste here, which I'm okay with for now.
+ */
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::{collection::open_test_collection, types::Usn};
+
     #[test]
-    fn hello() {
-        println!("hello from detailed_feedback::revlog::undo!");
-        println!("FIXME@kaben: decide whether to unit test the functions in this file.");
+    fn revlog_entry_differs_from_db_with_unchanged_entry() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+
+        assert!(!revlog_entry_differs_from_db(&mut review, &mut reviews[0]));
+
+        Ok(())
+    }
+
+    #[test]
+    fn revlog_entry_differs_from_db_with_changed_entry() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+        review.usn = Usn(1234);
+        review.mtime = TimestampSecs(5678);
+        review.feedback = "feedback".to_string();
+        review.tags = ["fubar".to_string(), "fubaz".to_string()].to_vec();
+
+        assert!(revlog_entry_differs_from_db(&mut review, &mut reviews[0]));
+
+        Ok(())
+    }
+
+    #[test]
+    fn update_revlog_entry_undoable() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut orig_review = reviews[0].clone();
+        orig_review.usn = Usn(1234);
+        col.storage.update_revlog_entry(&orig_review)?;
+
+        let mut new_review = orig_review.clone();
+        new_review.mtime = TimestampSecs(5678);
+        new_review.feedback = "feedback".to_string();
+        new_review.tags = ["fubar".to_string(), "fubaz".to_string()].to_vec();
+
+        // Higher-level code changes usn, but this call shouldn't.
+        col.update_revlog_entry_undoable(&new_review, orig_review)?;
+
+        reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+        assert_eq!(reviews[0].usn, Usn(1234));
+        assert_eq!(reviews[0].mtime, TimestampSecs(5678));
+        assert_eq!(reviews[0].feedback, "feedback".to_string());
+        assert_eq!(
+            reviews[0].tags,
+            ["fubar".to_string(), "fubaz".to_string()].to_vec()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn update_revlog_entry_inner_with_unchanged_entry_should_not_update_usn() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+        review.usn = Usn(1234);
+
+        // Low-level update to set usn.
+        col.storage.update_revlog_entry(&review)?;
+
+        // This call should NOT change usn because the review is unchanged.
+        col.update_revlog_entry_inner(&mut review)?;
+
+        reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+        assert_eq!(reviews[0].usn, Usn(1234));
+
+        Ok(())
+    }
+
+    #[test]
+    fn update_revlog_entry_inner_with_changed_entry_should_update_usn() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+        review.usn = Usn(1234);
+
+        // Low-level update to set usn.
+        col.storage.update_revlog_entry(&review)?;
+
+        review.mtime = TimestampSecs(5678);
+        review.feedback = "feedback".to_string();
+        review.tags = ["fubar".to_string(), "fubaz".to_string()].to_vec();
+
+        // This call should change usn because the review has changed.
+        col.update_revlog_entry_inner(&mut review)?;
+
+        reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+        assert_eq!(reviews[0].usn, Usn(-1));
+        assert_eq!(reviews[0].mtime, TimestampSecs(5678));
+        assert_eq!(reviews[0].feedback, "feedback".to_string());
+        assert_eq!(
+            reviews[0].tags,
+            ["fubar".to_string(), "fubaz".to_string()].to_vec()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn update_revlog_entries_maybe_undoable_true_with_unchanged_entry_should_not_update_usn(
+    ) -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+        review.usn = Usn(1234);
+
+        // Low-level update to set usn.
+        col.storage.update_revlog_entry(&review)?;
+
+        let vec = vec![review];
+
+        // This call should NOT change usn because the review is unchanged.
+        col.update_revlog_entries_maybe_undoable(vec, true)?;
+
+        reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+        assert_eq!(reviews[0].usn, Usn(1234));
+
+        Ok(())
+    }
+
+    #[test]
+    fn update_revlog_entries_maybe_undoable_false_with_unchanged_entry_should_not_update_usn(
+    ) -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        let mut reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+
+        let mut review = reviews[0].clone();
+        review.usn = Usn(1234);
+
+        // Low-level update to set usn.
+        col.storage.update_revlog_entry(&review)?;
+
+        let vec = vec![review];
+
+        // This call should NOT change usn because the review is unchanged.
+        col.update_revlog_entries_maybe_undoable(vec, false)?;
+
+        reviews = col
+            .storage
+            .get_revlog_entries_for_card(post_answer.card_id)?;
+        assert_eq!(reviews[0].usn, Usn(1234));
+
+        Ok(())
     }
 }
