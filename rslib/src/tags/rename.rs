@@ -7,7 +7,11 @@ use crate::{prelude::*, tags::register::normalize_tag_name};
 impl Collection {
     /// Rename a given tag and its children on all notes that reference it, returning changed
     /// note count.
-    pub fn rename_tag(&mut self, old_prefix: &str, new_prefix: &str) -> Result<OpOutput<usize>> {
+    pub fn rename_tag(
+        &mut self,
+        old_prefix: &str,
+        new_prefix: &str,
+    ) -> Result<OpOutput<Vec<usize>>> {
         self.transact(Op::RenameTag, |col| {
             col.rename_tag_inner(old_prefix, new_prefix)
         })
@@ -15,7 +19,7 @@ impl Collection {
 }
 
 impl Collection {
-    fn rename_tag_inner(&mut self, old_prefix: &str, new_prefix: &str) -> Result<usize> {
+    fn rename_tag_inner(&mut self, old_prefix: &str, new_prefix: &str) -> Result<Vec<usize>> {
         require!(
             !new_prefix.contains(is_tag_separator),
             "replacement name can not contain a space",
@@ -41,10 +45,15 @@ impl Collection {
         let matched_notes = self
             .storage
             .get_note_tags_by_predicate(|tags| re.is_match(tags))?;
-        let match_count = matched_notes.len();
-        if match_count == 0 {
+        let matched_revlog_entries = self
+            .storage
+            .get_revlog_tags_by_predicate(|tags| re.is_match(tags))?;
+
+        let note_match_count = matched_notes.len();
+        let revlog_match_count = matched_revlog_entries.len();
+        if (note_match_count == 0) && (revlog_match_count == 0) {
             // no matches; exit early so we don't clobber the empty tag entries
-            return Ok(0);
+            return Ok(vec![0, 0]);
         }
 
         // remove old prefix from the tag list
@@ -59,12 +68,18 @@ impl Collection {
             note.set_modified(usn);
             self.update_note_tags_undoable(&note, original)?;
         }
+        for mut revlog_entry in matched_revlog_entries {
+            let original = revlog_entry.clone();
+            revlog_entry.tags = re.replace(&revlog_entry.tags, &new_prefix);
+            revlog_entry.set_modified(usn);
+            self.update_revlog_tags_undoable(&revlog_entry, original)?;
+        }
 
         // update tag list
         for tag in re.into_new_tags() {
             self.register_tag_string(tag, usn)?;
         }
 
-        Ok(match_count)
+        Ok(vec![note_match_count, revlog_match_count])
     }
 }

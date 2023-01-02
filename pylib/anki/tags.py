@@ -91,7 +91,7 @@ class TagManager(DeprecatedNamesMixin):
     # Bulk addition/removal based on tag
     #############################################################
 
-    def rename(self, old: str, new: str) -> OpChangesWithCount:
+    def rename(self, old: str, new: str) -> OpChangesWithCounts:
         "Rename provided tag and its children, returning number of changed notes."
         return self.col._backend.rename_tags(current_prefix=old, new_prefix=new)
 

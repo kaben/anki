@@ -11,7 +11,7 @@ import aqt.operations
 from anki.collection import (
     Config,
     OpChanges,
-    OpChangesWithCount,
+    OpChangesWithCounts,
     SearchJoiner,
     SearchNode,
 )
@@ -1032,9 +1032,16 @@ class SidebarTreeView(QTreeView):
 
         if item.item_type is SidebarItemType.TAG:
 
-            def success(out: OpChangesWithCount) -> None:
-                if out.count:
-                    tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
+            def success(out: OpChangesWithCounts) -> None:
+                if out.counts[0] or out.counts[1]:
+                    # FIXME@kaben: remove next line.
+                    # tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
+                    tooltip(
+                        tr.browsing_notes_and_reviews_updated(
+                            note_count=out.counts[0], review_count=out.counts[1]
+                        ),
+                        parent=self,
+                    )
                 else:
                     showInfo(tr.browsing_tag_rename_warning_empty(), parent=self)
 
@@ -1110,9 +1117,16 @@ class SidebarTreeView(QTreeView):
         item.name = new_name
         item.full_name = new_full_name
 
-        def success(out: OpChangesWithCount) -> None:
-            if out.count:
-                tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
+        def success(out: OpChangesWithCounts) -> None:
+            if out.counts[0] or out.counts[1]:
+                # FIXME@kaben: remove next line.
+                # tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
+                tooltip(
+                    tr.browsing_notes_and_reviews_updated(
+                        note_count=out.counts[0], review_count=out.counts[1]
+                    ),
+                    parent=self,
+                )
             else:
                 # revert renaming of sidebar item
                 item.full_name = old_full_name

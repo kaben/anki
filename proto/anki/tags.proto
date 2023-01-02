@@ -20,8 +20,7 @@ service TagsService {
   // and drop works again.
   rpc ReparentTags(ReparentTagsRequest)
       returns (collection.OpChangesWithCounts);
-  // FIXME@kaben: handle revlog changes.
-  rpc RenameTags(RenameTagsRequest) returns (collection.OpChangesWithCount);
+  rpc RenameTags(RenameTagsRequest) returns (collection.OpChangesWithCounts);
   // FIXME@kaben: Write version for reviews.
   rpc AddNoteTags(NoteIdsAndTagsRequest)
       returns (collection.OpChangesWithCount);

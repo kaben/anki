@@ -65,7 +65,7 @@ impl TagsService for Backend {
     fn rename_tags(
         &self,
         input: pb::tags::RenameTagsRequest,
-    ) -> Result<pb::collection::OpChangesWithCount> {
+    ) -> Result<pb::collection::OpChangesWithCounts> {
         self.with_col(|col| col.rename_tag(&input.current_prefix, &input.new_prefix))
             .map(Into::into)
     }
