@@ -16,8 +16,10 @@ service TagsService {
   rpc RemoveTags(generic.String) returns (collection.OpChangesWithCounts);
   rpc SetTagCollapsed(SetTagCollapsedRequest) returns (collection.OpChanges);
   rpc TagTree(generic.Empty) returns (TagTreeNode);
-  // FIXME@kaben: handle revlog changes.
-  rpc ReparentTags(ReparentTagsRequest) returns (collection.OpChangesWithCount);
+  // FIXME@kaben: changed to update revlog entries, but can't test until drag
+  // and drop works again.
+  rpc ReparentTags(ReparentTagsRequest)
+      returns (collection.OpChangesWithCounts);
   // FIXME@kaben: handle revlog changes.
   rpc RenameTags(RenameTagsRequest) returns (collection.OpChangesWithCount);
   // FIXME@kaben: Write version for reviews.

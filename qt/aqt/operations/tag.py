@@ -70,7 +70,6 @@ def remove_tags_from_all_notes(
     return CollectionOp(
         parent, lambda col: col.tags.remove(space_separated_tags=space_separated_tags)
     ).success(
-        # lambda out: tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
         lambda out: tooltip(
             tr.browsing_notes_and_reviews_updated(
                 note_count=out.counts[0], review_count=out.counts[1]
@@ -80,13 +79,20 @@ def remove_tags_from_all_notes(
     )
 
 
+# FIXME@kaben: changed to update revlog entries, but can't test until drag and
+# drop works.
 def reparent_tags(
     *, parent: QWidget, tags: Sequence[str], new_parent: str
-) -> CollectionOp[OpChangesWithCount]:
+) -> CollectionOp[OpChangesWithCounts]:
     return CollectionOp(
         parent, lambda col: col.tags.reparent(tags=tags, new_parent=new_parent)
     ).success(
-        lambda out: tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
+        lambda out: tooltip(
+            tr.browsing_notes_and_reviews_updated(
+                note_count=out.counts[0], review_count=out.counts[1]
+            ),
+            parent=parent,
+        )
     )
 
 

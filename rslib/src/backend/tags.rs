@@ -47,10 +47,11 @@ impl TagsService for Backend {
         self.with_col(|col| col.tag_tree())
     }
 
+    // FIXME@kaben: changed to update revlog entries, but can't test until drag and drop works.
     fn reparent_tags(
         &self,
         input: pb::tags::ReparentTagsRequest,
-    ) -> Result<pb::collection::OpChangesWithCount> {
+    ) -> Result<pb::collection::OpChangesWithCounts> {
         let source_tags = input.tags;
         let target_tag = if input.new_parent.is_empty() {
             None

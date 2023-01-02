@@ -100,7 +100,9 @@ class TagManager(DeprecatedNamesMixin):
         "Remove the provided tag(s) and their children from notes and the tag list."
         return self.col._backend.remove_tags(val=space_separated_tags)
 
-    def reparent(self, tags: Sequence[str], new_parent: str) -> OpChangesWithCount:
+    # FIXME@kaben: changed to update revlog entries, but can't test until drag
+    # and drop works.
+    def reparent(self, tags: Sequence[str], new_parent: str) -> OpChangesWithCounts:
         """Change the parent of the provided tags.
         If new_parent is empty, tags will be reparented to the top-level."""
         return self.col._backend.reparent_tags(tags=tags, new_parent=new_parent)

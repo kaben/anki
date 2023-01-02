@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use super::{join_tags, matcher::TagMatcher};
 use crate::prelude::*;
 
+// FIXME@kaben: changed to update revlog entries, but can't test until drag and drop works.
 impl Collection {
     /// Reparent the provided tags under a new parent.
     ///
@@ -24,7 +25,7 @@ impl Collection {
         &mut self,
         tags_to_reparent: &[String],
         new_parent: Option<String>,
-    ) -> Result<OpOutput<usize>> {
+    ) -> Result<OpOutput<Vec<usize>>> {
         self.transact(Op::ReparentTag, |col| {
             col.reparent_tags_inner(tags_to_reparent, new_parent)
         })
@@ -34,20 +35,26 @@ impl Collection {
         &mut self,
         tags_to_reparent: &[String],
         new_parent: Option<String>,
-    ) -> Result<usize> {
+    ) -> Result<Vec<usize>> {
         let usn = self.usn()?;
         let mut matcher = TagMatcher::new(&join_tags(tags_to_reparent))?;
         let old_to_new_names = old_to_new_names(tags_to_reparent, new_parent);
         if old_to_new_names.is_empty() {
-            return Ok(0);
+            return Ok(vec![0, 0]);
         }
+
         let matched_notes = self
             .storage
             .get_note_tags_by_predicate(|tags| matcher.is_match(tags))?;
-        let match_count = matched_notes.len();
-        if match_count == 0 {
+        let matched_revlog_entries = self
+            .storage
+            .get_revlog_tags_by_predicate(|tags| matcher.is_match(tags))?;
+
+        let note_match_count = matched_notes.len();
+        let revlog_match_count = matched_revlog_entries.len();
+        if (note_match_count == 0) && (revlog_match_count == 0) {
             // no matches; exit early so we don't clobber the empty tag entries
-            return Ok(0);
+            return Ok(vec![0, 0]);
         }
 
         // remove old prefixes from the tag list
@@ -66,13 +73,21 @@ impl Collection {
             note.set_modified(usn);
             self.update_note_tags_undoable(&note, original)?;
         }
+        for mut revlog_entry in matched_revlog_entries {
+            let original = revlog_entry.clone();
+            revlog_entry.tags = matcher.replace_with_fn(&revlog_entry.tags, |cap| {
+                old_to_new_names.get(cap).unwrap().clone()
+            });
+            revlog_entry.set_modified(usn);
+            self.update_revlog_tags_undoable(&revlog_entry, original)?;
+        }
 
         // update tag list
         for tag in matcher.into_new_tags() {
             self.register_tag_string(tag, usn)?;
         }
 
-        Ok(match_count)
+        Ok(vec![note_match_count, revlog_match_count])
     }
 }
 
