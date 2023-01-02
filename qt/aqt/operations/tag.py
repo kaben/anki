@@ -54,8 +54,6 @@ def rename_tag(
 ) -> CollectionOp[OpChangesWithCounts]:
     def success(out: OpChangesWithCounts) -> None:
         if out.counts[0] or out.counts[1]:
-            # FIXME@kaben: remove next line.
-            # tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
             tooltip(
                 tr.browsing_notes_and_reviews_updated(
                     note_count=out.counts[0], review_count=out.counts[1]
@@ -77,8 +75,6 @@ def remove_tags_from_all_notes(
     return CollectionOp(
         parent, lambda col: col.tags.remove(space_separated_tags=space_separated_tags)
     ).success(
-        # FIXME@kaben: remove next line.
-        # lambda out: tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
         lambda out: tooltip(
             tr.browsing_notes_and_reviews_updated(
                 note_count=out.counts[0], review_count=out.counts[1]
@@ -96,8 +92,6 @@ def reparent_tags(
     return CollectionOp(
         parent, lambda col: col.tags.reparent(tags=tags, new_parent=new_parent)
     ).success(
-        # FIXME@kaben: remove next line.
-        # lambda out: tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
         lambda out: tooltip(
             tr.browsing_notes_and_reviews_updated(
                 note_count=out.counts[0], review_count=out.counts[1]

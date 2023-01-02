@@ -1034,8 +1034,6 @@ class SidebarTreeView(QTreeView):
 
             def success(out: OpChangesWithCounts) -> None:
                 if out.counts[0] or out.counts[1]:
-                    # FIXME@kaben: remove next line.
-                    # tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
                     tooltip(
                         tr.browsing_notes_and_reviews_updated(
                             note_count=out.counts[0], review_count=out.counts[1]
@@ -1119,8 +1117,6 @@ class SidebarTreeView(QTreeView):
 
         def success(out: OpChangesWithCounts) -> None:
             if out.counts[0] or out.counts[1]:
-                # FIXME@kaben: remove next line.
-                # tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
                 tooltip(
                     tr.browsing_notes_and_reviews_updated(
                         note_count=out.counts[0], review_count=out.counts[1]
