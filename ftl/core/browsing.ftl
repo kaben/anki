@@ -78,11 +78,15 @@ browsing-replace-with = <b>Replace With</b>:
 browsing-reposition = Reposition...
 browsing-reposition-new-cards = Reposition New Cards
 browsing-reschedule = Reschedule
+browsing-review-initial = R
 browsing-search-bar-hint = Search cards/notes (type text, then press Enter)
 browsing-search-in = Search in:
 browsing-search-within-formatting-slow = Search within formatting (slow)
 browsing-selected-notes-only = Selected notes only
 browsing-shift-position-of-existing-cards = Shift position of existing cards
+browsing-show-notes = Show Notes
+browsing-show-cards = Show Cards
+browsing-show-reviews = Show Reviews
 browsing-sidebar = Sidebar
 browsing-sidebar-filter = Sidebar filter
 browsing-sort-field = Sort Field
@@ -116,6 +120,14 @@ browsing-notes-updated =
         [one] { $count } note updated.
        *[other] { $count } notes updated.
     }
+browsing-notes-and-reviews-updated =
+    { $note_count ->
+        [one] { $note_count } note
+       *[other] { $note_count } notes
+    } and { $review_count ->
+        [one] { $review_count } review
+       *[other] { $review_count } reviews
+    } updated.
 browsing-cards-updated =
     { $count ->
         [one] { $count } card updated.

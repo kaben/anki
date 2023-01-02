@@ -20,6 +20,7 @@ use crate::{browser_table::Column, card::CardType, prelude::*};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ReturnItemType {
+    Reviews,
     Cards,
     Notes,
 }
@@ -47,9 +48,16 @@ impl AsReturnItemType for NoteId {
     }
 }
 
+impl AsReturnItemType for RevlogId {
+    fn as_return_item_type() -> ReturnItemType {
+        ReturnItemType::Reviews
+    }
+}
+
 impl ReturnItemType {
     fn required_table(&self) -> RequiredTable {
         match self {
+            ReturnItemType::Reviews => RequiredTable::Reviews,
             ReturnItemType::Cards => RequiredTable::Cards,
             ReturnItemType::Notes => RequiredTable::Notes,
         }
@@ -59,7 +67,9 @@ impl ReturnItemType {
 impl SortMode {
     fn required_table(&self) -> RequiredTable {
         match self {
-            SortMode::NoOrder => RequiredTable::CardsOrNotes,
+            //FIXME@kaben: Remove.
+            //SortMode::NoOrder => RequiredTable::CardsOrNotes,
+            SortMode::NoOrder => RequiredTable::ReviewsOrCardsOrNotes,
             SortMode::Builtin { column, .. } => column.required_table(),
             SortMode::Custom(ref text) => {
                 if text.contains("n.") {
@@ -85,7 +95,9 @@ impl Column {
             | Column::Notetype
             | Column::SortField
             | Column::Tags => RequiredTable::Notes,
-            _ => RequiredTable::CardsOrNotes,
+            // FIXME@kaben: Remove
+            //_ => RequiredTable::CardsOrNotes,
+            _ => RequiredTable::ReviewsOrCardsOrNotes,
         }
     }
 }
@@ -142,6 +154,13 @@ impl Drop for NoteTableGuard<'_> {
 }
 
 impl Collection {
+    pub fn search_reviews<N>(&mut self, search: N, mode: SortMode) -> Result<Vec<RevlogId>>
+    where
+        N: TryIntoSearch,
+    {
+        self.search(search, mode)
+    }
+
     pub fn search_cards<N>(&mut self, search: N, mode: SortMode) -> Result<Vec<CardId>>
     where
         N: TryIntoSearch,
@@ -325,6 +344,7 @@ fn write_order(
     let order = match item_type {
         ReturnItemType::Cards => card_order_from_sort_column(column),
         ReturnItemType::Notes => note_order_from_sort_column(column),
+        ReturnItemType::Reviews => review_order_from_sort_column(column),
     };
     require!(!order.is_empty(), "Can't sort {item_type:?} by {column:?}.");
     if reverse {
@@ -397,6 +417,11 @@ fn note_order_from_sort_column(column: Column) -> Cow<'static, str> {
     }
 }
 
+fn review_order_from_sort_column(_column: Column) -> Cow<'static, str> {
+    // FIXME@kaben: refine sort criteria.
+    "r.id asc".into()
+}
+
 fn prepare_sort(col: &mut Collection, column: Column, item_type: ReturnItemType) -> Result<()> {
     let sql = match item_type {
         ReturnItemType::Cards => match column {
@@ -417,6 +442,8 @@ fn prepare_sort(col: &mut Collection, column: Column, item_type: ReturnItemType)
             Column::Notetype => include_str!("notetype_order.sql"),
             _ => return Ok(()),
         },
+        // FIXME@kaben: handle case below.
+        ReturnItemType::Reviews => return Ok(()),
     };
 
     col.storage.db.execute_batch(sql)?;

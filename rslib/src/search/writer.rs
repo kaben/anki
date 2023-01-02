@@ -81,6 +81,10 @@ fn write_search_node(node: &SearchNode) -> String {
         Regex(s) => maybe_quote(&format!("re:{}", s)),
         NoCombining(s) => maybe_quote(&format!("nc:{}", s)),
         WordBoundary(s) => maybe_quote(&format!("w:{}", s)),
+
+        RevlogIds(s) => format!("rid:{}", s),
+        RTag { tag, is_re } => write_single_field("rtag", tag, *is_re),
+        RFeedback { text, is_re } => write_single_field("feedback", text, *is_re),
     }
 }
 

@@ -807,7 +807,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={lowerResizer}
     >
         <div class="tags-info">
-            {@html tagAmount > 0 ? `${tagAmount} Note ${tr.editingTags()}` : ""}
+            {tagAmount} Note {tr.editingTags()}
         </div>
     </HorizontalResizer>
 
@@ -1006,7 +1006,7 @@ the AddCards dialog) should be implemented in the user of this component.
         bind:this={reviewTagsResizer}
     >
         <div class="tags-info">
-            {@html revTagAmount > 0 ? `${revTagAmount} Review ${tr.editingTags()}` : ""}
+            {revTagAmount} Review {tr.editingTags()}
         </div>
     </HorizontalResizer>
 

@@ -280,6 +280,13 @@ $vars: (
                     dark: palette(green, 4),
                 ),
             ),
+            review: (
+                "Accent color for reviews",
+                (
+                    light: palette(indigo, 5),
+                    dark: palette(purple, 5),
+                ),
+            ),
             danger: (
                 "Saturated accent color to grab attention",
                 (

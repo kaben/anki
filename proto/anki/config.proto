@@ -55,6 +55,7 @@ message ConfigKey {
     SET_DUE_REVIEWER = 1;
     DEFAULT_SEARCH_TEXT = 2;
     CARD_STATE_CUSTOMIZER = 3;
+    BROWSER_TABLE_MODE = 4;
   }
 }
 

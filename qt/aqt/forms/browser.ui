@@ -209,7 +209,7 @@
      <x>0</x>
      <y>0</y>
      <width>750</width>
-     <height>22</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuEdit">
@@ -311,7 +311,9 @@
      <addaction name="actionLayoutVertical"/>
      <addaction name="actionLayoutHorizontal"/>
     </widget>
-    <addaction name="action_toggle_mode"/>
+    <addaction name="action_show_notes"/>
+    <addaction name="action_show_cards"/>
+    <addaction name="action_show_reviews"/>
     <addaction name="separator"/>
     <addaction name="actionFullScreen"/>
     <addaction name="separator"/>
@@ -630,14 +632,6 @@
     <string notr="true">Ctrl+Alt+N</string>
    </property>
   </action>
-  <action name="action_toggle_mode">
-   <property name="text">
-    <string>browsing_toggle_showing_cards_notes</string>
-   </property>
-   <property name="shortcut">
-    <string notr="true">Ctrl+Alt+T</string>
-   </property>
-  </action>
   <action name="actionRedo">
    <property name="text">
     <string>qt_accel_redo</string>
@@ -734,9 +728,22 @@
     <string>qt_accel_layout_horizontal</string>
    </property>
   </action>
-  <action name="actionbrowsing_toggle_showing_cards_notes">
+  <action name="action_show_notes">
    <property name="text">
-    <string>browsing_toggle_showing_cards_notes</string>
+    <string>browsing_show_notes</string>
+   </property>
+  </action>
+  <action name="action_show_cards">
+   <property name="text">
+    <string>browsing_show_cards</string>
+   </property>
+   <property name="toolTip">
+    <string>browsing_show_cards</string>
+   </property>
+  </action>
+  <action name="action_show_reviews">
+   <property name="text">
+    <string>browsing_show_reviews</string>
    </property>
   </action>
  </widget>

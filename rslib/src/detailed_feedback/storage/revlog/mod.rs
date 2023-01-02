@@ -1,8 +1,29 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use crate::{prelude::*, revlog::RevlogEntry, storage::SqliteStorage, tags::join_tags};
-use rusqlite::params;
+use crate::{
+    prelude::*,
+    revlog::{RevlogEntry, RevlogTags},
+    storage::SqliteStorage,
+    tags::join_tags,
+};
+use rusqlite::{params, Row};
+
+impl RevlogTags {
+    pub(crate) fn set_modified(&mut self, usn: Usn) {
+        self.mtime = TimestampSecs::now();
+        self.usn = usn;
+    }
+}
+
+fn row_to_revlog_tags(row: &Row) -> Result<RevlogTags> {
+    Ok(RevlogTags {
+        id: row.get(0)?,
+        mtime: row.get(1)?,
+        usn: row.get(2)?,
+        tags: row.get(3)?,
+    })
+}
 
 impl SqliteStorage {
     /// Called by `fn Collection::update_revlog_entry_undoable()` defined in
@@ -25,6 +46,40 @@ impl SqliteStorage {
             join_tags(&entry.tags),
             entry.id,
         ])?;
+        Ok(())
+    }
+
+    pub(crate) fn get_revlog_tags_by_predicate<F>(&mut self, want: F) -> Result<Vec<RevlogTags>>
+    where
+        F: Fn(&str) -> bool,
+    {
+        let mut query_stmt = self.db.prepare_cached(include_str!("get_tags.sql"))?;
+        let mut rows = query_stmt.query([])?;
+        let mut output = vec![];
+        while let Some(row) = rows.next()? {
+            let tags = row.get_ref_unwrap(3).as_str()?;
+            if want(tags) {
+                output.push(row_to_revlog_tags(row)?)
+            }
+        }
+        Ok(output)
+    }
+
+    pub(crate) fn get_revlog_tags_by_id(
+        &mut self,
+        revlog_id: RevlogId,
+    ) -> Result<Option<RevlogTags>> {
+        self.db
+            .prepare_cached(&format!("{} where id = ?", include_str!("get_tags.sql")))?
+            .query_and_then([revlog_id], row_to_revlog_tags)?
+            .next()
+            .transpose()
+    }
+
+    pub(crate) fn update_revlog_tags(&mut self, revlog: &RevlogTags) -> Result<()> {
+        self.db
+            .prepare_cached(include_str!("update_tags.sql"))?
+            .execute(params![revlog.mtime, revlog.usn, revlog.tags, revlog.id])?;
         Ok(())
     }
 

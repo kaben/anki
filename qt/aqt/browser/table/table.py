@@ -15,7 +15,7 @@ from anki.revlog import RevlogEntry, RevlogId
 from aqt import gui_hooks
 from aqt.browser.table import Columns, ItemId, SearchContext
 from aqt.browser.table.model import DataModel
-from aqt.browser.table.state import CardState, ItemState, NoteState
+from aqt.browser.table.state import CardState, ItemState, NoteState, ReviewState
 from aqt.qt import *
 from aqt.theme import theme_manager
 from aqt.utils import (
@@ -34,11 +34,29 @@ class Table:
     def __init__(self, browser: aqt.browser.Browser) -> None:
         self.browser = browser
         self.col: Collection = browser.col
-        self._state: ItemState = (
-            NoteState(self.col)
-            if self.col.get_config_bool(Config.Bool.BROWSER_TABLE_SHOW_NOTES_MODE)
-            else CardState(self.col)
-        )
+        # FIXME@kaben: remove.
+        # self._state: ItemState = (
+        #    NoteState(self.col)
+        #    if self.col.get_config_bool(Config.Bool.BROWSER_TABLE_SHOW_NOTES_MODE)
+        #    else CardState(self.col)
+        # )
+        mode = self.col.get_config_string(Config.String.BROWSER_TABLE_MODE)
+        self._state: ItemState = None
+        # FIXME@kaben: remove debugging prints below.
+        if mode == "N":
+            # print("Table.__init__(): mode N")
+            self._state = NoteState(self.col)
+        elif mode == "C":
+            # print("Table.__init__(): mode C")
+            self._state = CardState(self.col)
+        elif mode == "R":
+            # print("Table.__init__(): mode R")
+            self._state = ReviewState(self.col)
+        else:
+            # print(f"Table.__init__(): unexpected mode '{mode}'")
+            self._state = CardState(self.col)
+            self.col.set_config_string(Config.String.BROWSER_TABLE_MODE, self.mode())
+
         self._model = DataModel(
             self.browser,
             self.col,
@@ -88,6 +106,15 @@ class Table:
     def is_notes_mode(self) -> bool:
         return self._state.is_notes_mode()
 
+    def is_cards_mode(self) -> bool:
+        return self._state.is_cards_mode()
+
+    def is_reviews_mode(self) -> bool:
+        return self._state.is_reviews_mode()
+
+    def mode(self) -> str:
+        return self._state.mode()
+
     # Get objects
 
     def get_current_card(self) -> Card | None:
@@ -95,6 +122,9 @@ class Table:
 
     def get_current_note(self) -> Note | None:
         return self._model.get_note(self._current())
+
+    def get_current_review(self) -> RevlogEntry | None:
+        return self._model.get_review(self._current())
 
     def get_single_selected_card(self) -> Card | None:
         """If there is only one row selected return its card, else None.
@@ -195,20 +225,113 @@ class Table:
         self._model.search(SearchContext(search=txt, browser=self.browser))
         self._restore_selection(self._intersected_selection)
 
-    def toggle_state(self, is_notes_mode: bool, last_search: str) -> None:
-        if is_notes_mode == self.is_notes_mode():
+    # def toggle_state(self, is_notes_mode: bool, last_search: str) -> None:
+    #    if is_notes_mode == self.is_notes_mode():
+    #        return
+    #    self._save_header()
+    #    self._save_selection()
+    #    self._state = self._model.toggle_state(
+    #        SearchContext(search=last_search, browser=self.browser)
+    #    )
+    #    self.col.set_config_bool(
+    #        Config.Bool.BROWSER_TABLE_SHOW_NOTES_MODE,
+    #        self.is_notes_mode(),
+    #    )
+    #    self._restore_header()
+    #    self._restore_selection(self._toggled_selection)
+
+    # FIXME@kaben: refactor.
+    def switch_to_note_state(self, last_search: str) -> None:
+        if self.is_notes_mode():
             return
         self._save_header()
         self._save_selection()
-        self._state = self._model.toggle_state(
+
+        old_state = self._state
+
+        def new_selected_and_current():
+            selected_rows = self._model.get_item_rows(
+                old_state.get_note_ids(self._selected_items)
+            )
+            current_row = None
+            if self._current_item:
+                if new_current := old_state.get_note_ids([self._current_item]):
+                    current_row = self._model.get_item_row(new_current[0])
+            return selected_rows, current_row
+
+        self._state = self._model.switch_to_note_state(
             SearchContext(search=last_search, browser=self.browser)
         )
-        self.col.set_config_bool(
-            Config.Bool.BROWSER_TABLE_SHOW_NOTES_MODE,
-            self.is_notes_mode(),
+        # NOTE@kaben: changed BROWSER_TABLE_SHOW_NOTES_MODE to BROWSER_TABLE_SHOW_REVIEWS_MODE.
+        self.col.set_config_string(
+            Config.String.BROWSER_TABLE_MODE,
+            self.mode(),
         )
         self._restore_header()
-        self._restore_selection(self._toggled_selection)
+
+        self._restore_selection(new_selected_and_current)
+
+    # FIXME@kaben: refactor.
+    def switch_to_card_state(self, last_search: str) -> None:
+        if self.is_cards_mode():
+            return
+        self._save_header()
+        self._save_selection()
+
+        old_state = self._state
+
+        def new_selected_and_current():
+            selected_rows = self._model.get_item_rows(
+                old_state.get_card_ids(self._selected_items)
+            )
+            current_row = None
+            if self._current_item:
+                if new_current := old_state.get_card_ids([self._current_item]):
+                    current_row = self._model.get_item_row(new_current[0])
+            return selected_rows, current_row
+
+        self._state = self._model.switch_to_card_state(
+            SearchContext(search=last_search, browser=self.browser)
+        )
+        # NOTE@kaben: changed BROWSER_TABLE_SHOW_NOTES_MODE to BROWSER_TABLE_SHOW_REVIEWS_MODE.
+        self.col.set_config_string(
+            Config.String.BROWSER_TABLE_MODE,
+            self.mode(),
+        )
+        self._restore_header()
+
+        self._restore_selection(new_selected_and_current)
+
+    # FIXME@kaben: refactor.
+    def switch_to_review_state(self, last_search: str) -> None:
+        if self.is_reviews_mode():
+            return
+        self._save_header()
+        self._save_selection()
+
+        old_state = self._state
+
+        def new_selected_and_current():
+            selected_rows = self._model.get_item_rows(
+                old_state.get_review_ids(self._selected_items)
+            )
+            current_row = None
+            if self._current_item:
+                if new_current := old_state.get_review_ids([self._current_item]):
+                    current_row = self._model.get_item_row(new_current[0])
+            return selected_rows, current_row
+
+        self._state = self._model.switch_to_review_state(
+            SearchContext(search=last_search, browser=self.browser)
+        )
+        # NOTE@kaben: changed BROWSER_TABLE_SHOW_NOTES_MODE to BROWSER_TABLE_SHOW_REVIEWS_MODE.
+        self.col.set_config_string(
+            Config.String.BROWSER_TABLE_MODE,
+            self.mode(),
+        )
+        self._restore_header()
+
+        self._restore_selection(new_selected_and_current)
 
     # Move cursor
 

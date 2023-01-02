@@ -26,7 +26,10 @@ impl TagsService for Backend {
         })
     }
 
-    fn remove_tags(&self, tags: pb::generic::String) -> Result<pb::collection::OpChangesWithCount> {
+    fn remove_tags(
+        &self,
+        tags: pb::generic::String,
+    ) -> Result<pb::collection::OpChangesWithCounts> {
         self.with_col(|col| col.remove_tags(tags.val.as_str()).map(Into::into))
     }
 

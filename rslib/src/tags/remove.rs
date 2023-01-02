@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 impl Collection {
     /// Take tags as a whitespace-separated string and remove them from all notes and the tag list.
-    pub fn remove_tags(&mut self, tags: &str) -> Result<OpOutput<usize>> {
+    pub fn remove_tags(&mut self, tags: &str) -> Result<OpOutput<Vec<usize>>> {
         self.transact(Op::RemoveTag, |col| col.remove_tags_inner(tags))
     }
 
@@ -28,7 +28,8 @@ impl Collection {
 }
 
 impl Collection {
-    fn remove_tags_inner(&mut self, tags: &str) -> Result<usize> {
+    fn remove_tags_inner(&mut self, tags: &str) -> Result<Vec<usize>> {
+        println!("fn Collection.remove_tags_inner(tags = {:?})", tags);
         let usn = self.usn()?;
 
         // gather tags that need removing
@@ -36,7 +37,12 @@ impl Collection {
         let matched_notes = self
             .storage
             .get_note_tags_by_predicate(|tags| re.is_match(tags))?;
-        let match_count = matched_notes.len();
+        let matched_revlog_entries = self
+            .storage
+            .get_revlog_tags_by_predicate(|tags| re.is_match(tags))?;
+
+        let note_match_count = matched_notes.len();
+        let revlog_match_count = matched_revlog_entries.len();
 
         // remove from the tag list
         for tag in self.storage.get_tags_by_predicate(|tag| re.is_match(tag))? {
@@ -50,8 +56,14 @@ impl Collection {
             note.set_modified(usn);
             self.update_note_tags_undoable(&note, original)?;
         }
+        for mut revlog_entry in matched_revlog_entries {
+            let original = revlog_entry.clone();
+            revlog_entry.tags = re.remove(&revlog_entry.tags);
+            revlog_entry.set_modified(usn);
+            self.update_revlog_tags_undoable(&revlog_entry, original)?;
+        }
 
-        Ok(match_count)
+        Ok(vec![note_match_count, revlog_match_count])
     }
 
     fn remove_tags_from_notes_inner(&mut self, nids: &[NoteId], tags: &str) -> Result<usize> {

@@ -255,9 +255,27 @@ class DataModel(QAbstractTableModel):
     # Table Interface
     ######################################################################
 
-    def toggle_state(self, context: SearchContext) -> ItemState:
+    # def toggle_state(self, context: SearchContext) -> ItemState:
+    #    self.beginResetModel()
+    #    self._state = self._state.toggle_state()
+    #    self.search(context)
+    #    return self._state
+
+    def switch_to_note_state(self, context: SearchContext) -> ItemState:
         self.beginResetModel()
-        self._state = self._state.toggle_state()
+        self._state = self._state.instantiate_note_state()
+        self.search(context)
+        return self._state
+
+    def switch_to_card_state(self, context: SearchContext) -> ItemState:
+        self.beginResetModel()
+        self._state = self._state.instantiate_card_state()
+        self.search(context)
+        return self._state
+
+    def switch_to_review_state(self, context: SearchContext) -> ItemState:
+        self.beginResetModel()
+        self._state = self._state.instantiate_review_state()
         self.search(context)
         return self._state
 

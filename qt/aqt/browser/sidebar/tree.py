@@ -742,7 +742,11 @@ class SidebarTreeView(QTreeView):
                 item = SidebarItem(
                     name=node.name,
                     icon=icon,
-                    search_node=SearchNode(tag=head + node.name),
+                    # FIXME@kaben: remove.
+                    # search_node=SearchNode(tag=head + node.name),
+                    search_node=SearchNode(
+                        parsable_text=f"tag:{head+node.name} OR rtag:{head+node.name}"
+                    ),
                     on_expanded=toggle_expand(node),
                     expanded=not node.collapsed,
                     item_type=SidebarItemType.TAG,

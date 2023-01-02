@@ -84,6 +84,16 @@ pub enum SearchNode {
     Regex(String),
     NoCombining(String),
     WordBoundary(String),
+
+    RevlogIds(String),
+    RTag {
+        tag: String,
+        is_re: bool,
+    },
+    RFeedback {
+        text: String,
+        is_re: bool,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -339,6 +349,11 @@ fn search_node_for_text_with_argument<'a>(
         "nc" => SearchNode::NoCombining(unescape(val)?),
         "w" => SearchNode::WordBoundary(unescape(val)?),
         "dupe" => parse_dupe(val)?,
+
+        "rid" => SearchNode::RevlogIds(check_id_list(val, key)?.into()),
+        "rtag" => parse_rtag(val)?,
+        "feedback" => parse_feedback(val)?,
+
         // anything else is a field search
         _ => parse_single_field(key, val)?,
     })
@@ -353,6 +368,34 @@ fn parse_tag(s: &str) -> ParseResult<SearchNode> {
     } else {
         SearchNode::Tag {
             tag: unescape(s)?,
+            is_re: false,
+        }
+    })
+}
+
+fn parse_rtag(s: &str) -> ParseResult<SearchNode> {
+    Ok(if let Some(re) = s.strip_prefix("re:") {
+        SearchNode::RTag {
+            tag: unescape_quotes(re),
+            is_re: true,
+        }
+    } else {
+        SearchNode::RTag {
+            tag: unescape(s)?,
+            is_re: false,
+        }
+    })
+}
+
+fn parse_feedback(s: &str) -> ParseResult<SearchNode> {
+    Ok(if let Some(re) = s.strip_prefix("re:") {
+        SearchNode::RFeedback {
+            text: unescape_quotes(re),
+            is_re: true,
+        }
+    } else {
+        SearchNode::RFeedback {
+            text: unescape(s)?,
             is_re: false,
         }
     })
@@ -897,6 +940,65 @@ mod test {
                 kind: PropertyKind::Ease(3.3)
             })]
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn review_parsing() -> Result<()> {
+        use Node::*;
+        use SearchNode::*;
+
+        assert_eq!(
+            parse(r"rtag:re:\\")?,
+            vec![Search(RTag {
+                tag: r"\\".into(),
+                is_re: true
+            })]
+        );
+        assert_eq!(
+            parse("rid:1237123712,2,3")?,
+            vec![Search(RevlogIds("1237123712,2,3".into()))]
+        );
+        assert_eq!(
+            parse("feedback:fubar")?,
+            vec![Search(RFeedback {
+                text: "fubar".into(),
+                is_re: false
+            })]
+        );
+        assert_eq!(
+            parse("feedback:fubar baz")?,
+            vec![
+                Search(RFeedback {
+                    text: "fubar".into(),
+                    is_re: false,
+                }),
+                And,
+                Search(UnqualifiedText("baz".into()))
+            ]
+        );
+        assert_eq!(
+            parse("\"feedback:fubar baz\"")?,
+            vec![Search(RFeedback {
+                text: "fubar baz".into(),
+                is_re: false,
+            })]
+        );
+        assert_eq!(
+            parse("feedback:\"fubar baz\"")?,
+            vec![Search(RFeedback {
+                text: "fubar baz".into(),
+                is_re: false,
+            })]
+        );
+
+        //FIXME@kaben: consider removing.
+        //println!(
+        //    "review_parsing(): parse(\"tag:ann::fubar or rtag:ann::fubar\"): {:?}",
+        //    parse("tag:ann::fubar or rtag:ann::fubar")?
+        //);
+        //assert!(false);
 
         Ok(())
     }

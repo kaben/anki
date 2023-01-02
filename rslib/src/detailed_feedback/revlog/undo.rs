@@ -4,7 +4,7 @@
 use crate::{
     ops::StateChanges,
     prelude::*,
-    revlog::{undo::UndoableRevlogChange, RevlogEntry},
+    revlog::{undo::UndoableRevlogChange, RevlogEntry, RevlogTags},
 };
 
 fn revlog_entry_differs_from_db(
@@ -102,6 +102,15 @@ impl Collection {
         self.save_undo(UndoableRevlogChange::Updated(Box::new(original)));
         self.storage.update_revlog_entry(entry)?;
         Ok(())
+    }
+
+    pub(crate) fn update_revlog_tags_undoable(
+        &mut self,
+        tags: &RevlogTags,
+        original: RevlogTags,
+    ) -> Result<()> {
+        self.save_undo(UndoableRevlogChange::TagsUpdated(Box::new(original)));
+        self.storage.update_revlog_tags(tags)
     }
 }
 

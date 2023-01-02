@@ -53,6 +53,7 @@ message OpChanges {
   bool config = 6;
   bool deck_config = 11;
   bool mtime = 12;
+  bool revlog_entry = 13;
 
   bool browser_table = 7;
   bool browser_sidebar = 8;
@@ -64,6 +65,11 @@ message OpChanges {
 
 message OpChangesWithCount {
   uint32 count = 1;
+  OpChanges changes = 2;
+}
+
+message OpChangesWithCounts {
+  repeated uint32 counts = 1;
   OpChanges changes = 2;
 }
 

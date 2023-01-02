@@ -32,6 +32,16 @@ impl From<TimestampMillis> for RevlogId {
     }
 }
 
+/// Information required for updating tags while leaving revlog content alone.
+/// Tags are stored in their DB form, separated by spaces.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(crate) struct RevlogTags {
+    pub id: RevlogId,
+    pub mtime: TimestampSecs,
+    pub usn: Usn,
+    pub tags: String,
+}
+
 #[derive(Serialize_tuple, Clone, Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct RevlogEntry {
     pub id: RevlogId,

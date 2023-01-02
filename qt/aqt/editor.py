@@ -522,7 +522,8 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         elif cmd.startswith("revSaveTags"):
             (type, tagsJson) = cmd.split(":", 1)
             tags = json.loads(tagsJson)
-            self.review.tags[:] = tags
+            if self.review:
+                self.review.tags[:] = tags
 
             gui_hooks.editor_did_update_review_tags(self.review)
             if not self.addMode:
@@ -548,6 +549,9 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         focusTo: int | None = None,
     ) -> None:
         "Make NOTE the current note."
+        print(
+            f"Editor.set_note(note={note}, review={review}, hide={hide}, focusTo={focusTo})"
+        )
         self.note = note
         self.review = review
         self.currentField = None
@@ -555,6 +559,9 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             self.loadNote(focusTo=focusTo)
         elif hide:
             self.widget.hide()
+        rtags = self.review.tags if self.review else None
+        ntags = self.note.tags if self.note else None
+        print(f"Editor.set_note(): rev_tags: {rtags}, note_tags: {ntags}")
 
     def loadNoteKeepingFocus(self) -> None:
         self.loadNote(self.currentField)
@@ -563,6 +570,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         self.loadNote(self.currentField)
 
     def loadNote(self, focusTo: int | None = None) -> None:
+        print(f"Editor.loadNote(focusTo={focusTo})")
         if not self.note:
             return
 
@@ -623,6 +631,10 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         review_tags_pane_height = self.mw.col.get_config(
             "editorPaneHeight.reviewTagsPane", 600
         )
+
+        rtags = self.review.tags if self.review else None
+        ntags = self.note.tags if self.note else None
+        print(f"Editor.loadNote(): rev_tags: {rtags}, note_tags: {ntags}")
 
         js = f"""
             saveSession();

@@ -1,7 +1,7 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use super::RevlogEntry;
+use super::{RevlogEntry, RevlogTags};
 use crate::prelude::*;
 
 #[derive(Debug)]
@@ -11,6 +11,7 @@ pub(crate) enum UndoableRevlogChange {
     // The `Updated` enum value added to support a version of Anki for
     // detailed review feedback.
     Updated(Box<RevlogEntry>),
+    TagsUpdated(Box<RevlogTags>),
 
     Removed(Box<RevlogEntry>),
 }
@@ -33,6 +34,14 @@ impl Collection {
                     .get_revlog_entry(revlog.id)?
                     .or_invalid("revlog entry disappeared")?;
                 self.update_revlog_entry_undoable(&revlog, current)
+            }
+
+            UndoableRevlogChange::TagsUpdated(revlog_tags) => {
+                let current = self
+                    .storage
+                    .get_revlog_tags_by_id(revlog_tags.id)?
+                    .or_invalid("revlog entry disappeared")?;
+                self.update_revlog_tags_undoable(&revlog_tags, current)
             }
 
             UndoableRevlogChange::Removed(revlog) => {

@@ -9,6 +9,7 @@ use strum::{Display, EnumIter, EnumString, IntoEnumIterator};
 use crate::{
     card::{CardQueue, CardType},
     card_rendering::prettify_av_tags,
+    config::StringKey,
     notetype::{CardTemplate, NotetypeKind},
     pb,
     prelude::*,
@@ -60,6 +61,13 @@ pub enum Column {
     ReviewTags,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Display, EnumIter, EnumString)]
+pub enum BrowserMode {
+    Notes,
+    Cards,
+    Reviews,
+}
+
 impl Default for Column {
     fn default() -> Self {
         Column::Custom
@@ -67,7 +75,9 @@ impl Default for Column {
 }
 
 struct RowContext {
-    notes_mode: bool,
+    //FIXME@kaben: remove.
+    //notes_mode: bool,
+    browser_mode: BrowserMode,
 
     // `revlog_entries` added to support version of Anki for detailed review feedback.
     revlog_entries: Vec<RevlogEntry>,
@@ -258,14 +268,18 @@ impl Collection {
     }
 
     pub fn browser_row_for_id(&mut self, id: i64) -> Result<pb::search::BrowserRow> {
-        let notes_mode = self.get_config_bool(BoolKey::BrowserTableShowNotesMode);
+        //FIXME@kaben: remove.
+        //let notes_mode = self.get_config_bool(BoolKey::BrowserTableShowNotesMode);
+        let mode: &String = &self.get_config_string(StringKey::BrowserTableMode);
         let columns = Arc::clone(
             self.state
                 .active_browser_columns
                 .as_ref()
                 .or_invalid("Active browser columns not set.")?,
         );
-        RowContext::new(self, id, notes_mode, card_render_required(&columns))?.browser_row(&columns)
+        //FIXME@kaben: remove.
+        //RowContext::new(self, id, notes_mode, card_render_required(&columns))?.browser_row(&columns)
+        RowContext::new(self, id, mode, card_render_required(&columns))?.browser_row(&columns)
     }
 
     fn get_note_maybe_with_fields(&self, id: NoteId, _with_fields: bool) -> Result<Note> {
@@ -331,31 +345,54 @@ impl RowContext {
     fn new(
         col: &mut Collection,
         id: i64,
-        notes_mode: bool,
+        //FIXME@kaben: remove.
+        //notes_mode: bool,
+        mode: &str,
         with_card_render: bool,
     ) -> Result<Self> {
         let cards;
         let note;
         let revlog_entries;
-        if notes_mode {
-            note = col
-                .get_note_maybe_with_fields(NoteId(id), with_card_render)
-                .map_err(|e| match e {
-                    AnkiError::NotFound { .. } => AnkiError::Deleted,
-                    _ => e,
-                })?;
-            cards = col.storage.all_cards_of_note(note.id)?;
-            if cards.is_empty() {
-                return Err(AnkiError::DatabaseCheckRequired);
+
+        let browser_mode: BrowserMode = match mode {
+            "N" => BrowserMode::Notes,
+            "C" => BrowserMode::Cards,
+            "R" => BrowserMode::Reviews,
+            &_ => BrowserMode::Cards,
+        };
+        match browser_mode {
+            BrowserMode::Notes => {
+                note = col
+                    .get_note_maybe_with_fields(NoteId(id), with_card_render)
+                    .map_err(|e| match e {
+                        AnkiError::NotFound { .. } => AnkiError::Deleted,
+                        _ => e,
+                    })?;
+                cards = col.storage.all_cards_of_note(note.id)?;
+                if cards.is_empty() {
+                    return Err(AnkiError::DatabaseCheckRequired);
+                }
+                revlog_entries = col.storage.get_revlog_entries_for_note(note.id)?;
             }
-            revlog_entries = col.storage.get_revlog_entries_for_note(note.id)?;
-        } else {
-            cards = vec![col
-                .storage
-                .get_card(CardId(id))?
-                .ok_or(AnkiError::Deleted)?];
-            note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
-            revlog_entries = col.storage.get_revlog_entries_for_card(cards[0].id)?;
+            BrowserMode::Cards => {
+                cards = vec![col
+                    .storage
+                    .get_card(CardId(id))?
+                    .ok_or(AnkiError::Deleted)?];
+                note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
+                revlog_entries = col.storage.get_revlog_entries_for_card(cards[0].id)?;
+            }
+            BrowserMode::Reviews => {
+                revlog_entries = vec![col
+                    .storage
+                    .get_revlog_entry(RevlogId(id))?
+                    .ok_or(AnkiError::Deleted)?];
+                cards = vec![col
+                    .storage
+                    .get_card(revlog_entries[0].cid)?
+                    .ok_or(AnkiError::Deleted)?];
+                note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
+            }
         }
         let notetype = col
             .get_notetype(note.notetype_id)?
@@ -379,9 +416,11 @@ impl RowContext {
         };
 
         Ok(RowContext {
-            notes_mode,
-            cards,
+            //FIXME@kaben: remove.
+            //notes_mode,
+            browser_mode,
             revlog_entries,
+            cards,
             note,
             notetype,
             deck,
@@ -461,10 +500,15 @@ impl RowContext {
     }
 
     fn due_str(&self) -> String {
-        if self.notes_mode {
-            self.note_due_str()
-        } else {
-            self.card_due_str()
+        // FIXME@kaben: Remove.
+        //if self.notes_mode {
+        //    self.note_due_str()
+        //} else {
+        //    self.card_due_str()
+        //}
+        match self.browser_mode {
+            BrowserMode::Notes => self.note_due_str(),
+            _ => self.card_due_str(), // FIXME@kaben: handle 'C' and 'R' cases.
         }
     }
 
@@ -514,13 +558,22 @@ impl RowContext {
 
     /// Returns the average interval of the review and relearn cards if there are any.
     fn interval_str(&self) -> String {
-        if !self.notes_mode {
+        // FIXME@kaben: Remove.
+        //if !self.notes_mode {
+        //    match self.cards[0].ctype {
+        //        CardType::New => return self.tr.browsing_new().into(),
+        //        CardType::Learn => return self.tr.browsing_learning().into(),
+        //        CardType::Review | CardType::Relearn => (),
+        //    }
+        //}
+        if self.browser_mode == BrowserMode::Cards {
             match self.cards[0].ctype {
                 CardType::New => return self.tr.browsing_new().into(),
                 CardType::Learn => return self.tr.browsing_learning().into(),
                 CardType::Review | CardType::Relearn => (),
             }
         }
+        // FIXME@kaben: handle 'R' case.
         let intervals: Vec<u32> = self
             .cards
             .iter()
@@ -548,12 +601,15 @@ impl RowContext {
     }
 
     fn deck_str(&self) -> String {
-        if self.notes_mode {
+        // FIXME@kaben: Remove.
+        //if self.notes_mode {
+        if self.browser_mode == BrowserMode::Notes {
             let decks = self.cards.iter().map(|c| c.deck_id).unique().count();
             if decks > 1 {
                 return format!("({})", decks);
             }
         }
+        // FIXME@kaben: handle 'R' case.
         let deck_name = self.deck.human_name();
         if let Some(original_deck) = &self.original_deck {
             format!("{} ({})", &deck_name, &original_deck.human_name())
@@ -563,8 +619,11 @@ impl RowContext {
     }
 
     fn cards_str(&self) -> Result<String> {
-        Ok(if self.notes_mode {
+        // FIXME@kaben: Remove.
+        //Ok(if self.notes_mode {
+        Ok(if self.browser_mode == BrowserMode::Notes {
             self.cards.len().to_string()
+            // FIXME@kaben: handle 'R' case.
         } else {
             let name = &self.template()?.name;
             match self.notetype.config.kind() {
@@ -648,12 +707,15 @@ impl RowContext {
 
     fn get_row_color(&self) -> pb::search::browser_row::Color {
         use pb::search::browser_row::Color;
-        if self.notes_mode {
+        // FIXME@kaben: remove.
+        //if self.notes_mode {
+        if self.browser_mode == BrowserMode::Notes {
             if self.note.is_marked() {
                 Color::Marked
             } else {
                 Color::Default
             }
+        // FIXME@kaben: handle 'R' case.
         } else {
             match self.cards[0].flags {
                 1 => Color::FlagRed,

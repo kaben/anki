@@ -30,6 +30,18 @@ class ItemState(ABC):
         """Return True if the state is a NoteState."""
         return isinstance(self, NoteState)
 
+    def is_cards_mode(self) -> bool:
+        """Return True if the state is a CardState."""
+        return isinstance(self, CardState)
+
+    def is_reviews_mode(self) -> bool:
+        """Return True if the state is a ReviewState."""
+        return isinstance(self, ReviewState)
+
+    @abstractmethod
+    def mode(self) -> str:
+        """N, C, or R respectively if state is NoteState, CardState, or ReviewState"""
+
     # Stateless Helpers
 
     def note_ids_from_card_ids(self, items: Sequence[ItemId]) -> Sequence[NoteId]:
@@ -82,6 +94,8 @@ class ItemState(ABC):
             column.notes_mode_label if self.is_notes_mode() else column.cards_mode_label
         )
 
+    # FIXME@kaben: make this abstract, and return appropriate tooltip from
+    # implementation.
     def column_tooltip(self, column: Column) -> str:
         if self.is_notes_mode():
             return column.notes_mode_tooltip
@@ -156,11 +170,22 @@ class ItemState(ABC):
     def get_review_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
         """Return the revlog entry ids for the given item ids."""
 
+    # Switch states
+
+    def instantiate_note_state(self) -> ItemState:
+        return NoteState(self.col)
+
+    def instantiate_card_state(self) -> ItemState:
+        return CardState(self.col)
+
+    def instantiate_review_state(self) -> ItemState:
+        return ReviewState(self.col)
+
     # Toggle
 
-    @abstractmethod
-    def toggle_state(self) -> ItemState:
-        """Return an instance of the other state."""
+    # @abstractmethod
+    # def toggle_state(self) -> ItemState:
+    #    """Return an instance of the other state."""
 
     @abstractmethod
     def get_new_items(self, old_items: Sequence[ItemId]) -> ItemList:
@@ -175,6 +200,9 @@ class CardState(ItemState):
     def __init__(self, col: Collection) -> None:
         super().__init__(col)
         self._active_columns = self.col.load_browser_card_columns()
+
+    def mode(self) -> str:
+        return "C"
 
     @property
     def active_columns(self) -> list[str]:
@@ -221,6 +249,8 @@ class CardState(ItemState):
     def toggle_state(self) -> NoteState:
         return NoteState(self.col)
 
+    # FIXME@kaben: new logic needed here to select corresponding rows after
+    # state switch.
     def get_new_items(self, old_items: Sequence[ItemId]) -> Sequence[CardId]:
         return super().card_ids_from_note_ids(old_items)
 
@@ -233,6 +263,9 @@ class NoteState(ItemState):
     def __init__(self, col: Collection) -> None:
         super().__init__(col)
         self._active_columns = self.col.load_browser_note_columns()
+
+    def mode(self) -> str:
+        return "N"
 
     @property
     def active_columns(self) -> list[str]:
@@ -276,8 +309,70 @@ class NoteState(ItemState):
     def get_review_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
         return super().review_ids_from_note_ids(items)
 
-    def toggle_state(self) -> CardState:
-        return CardState(self.col)
+    # def toggle_state(self) -> CardState:
+    #    return CardState(self.col)
 
+    # FIXME@kaben: new logic needed here to select corresponding rows after
+    # state switch.
     def get_new_items(self, old_items: Sequence[ItemId]) -> Sequence[NoteId]:
         return super().note_ids_from_card_ids(old_items)
+
+
+class ReviewState(ItemState):
+    GEOMETRY_KEY_PREFIX = "editorReviewsMode"
+    SORT_COLUMN_KEY = BrowserConfig.REVIEWS_SORT_COLUMN_KEY
+    SORT_BACKWARDS_KEY = BrowserConfig.REVIEWS_SORT_BACKWARDS_KEY
+
+    def __init__(self, col: Collection) -> None:
+        super().__init__(col)
+        self._active_columns = self.col.load_browser_review_columns()
+
+    def mode(self) -> str:
+        return "R"
+
+    @property
+    def active_columns(self) -> list[str]:
+        return self._active_columns
+
+    def toggle_active_column(self, column: str) -> None:
+        if column in self._active_columns:
+            self._active_columns.remove(column)
+        else:
+            self._active_columns.append(column)
+        self.col.set_browser_review_columns(self._active_columns)
+
+    def get_card(self, item: ItemId) -> Card:
+        review = self.col.get_revlog_entry(RevlogId(item))
+        return self.col.get_card(CardId(review.cid))
+
+    def get_note(self, item: ItemId) -> Note:
+        return self.get_card(item).note()
+
+    def get_review(self, item: ItemId) -> RevlogEntry:
+        return self.col.get_revlog_entry(RevlogId(item))
+
+    def find_items(
+        self, search: str, order: bool | str | Column, reverse: bool
+    ) -> Sequence[ItemId]:
+        return self.col.find_reviews(search, order, reverse)
+
+    def get_item_from_card_id(self, card: CardId) -> ItemId:
+        return card
+
+    def get_card_ids(self, items: Sequence[ItemId]) -> Sequence[CardId]:
+        return super().card_ids_from_review_ids(items)
+
+    def get_note_ids(self, items: Sequence[ItemId]) -> Sequence[NoteId]:
+        return super().note_ids_from_review_ids(items)
+
+    def get_review_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
+        return cast(Sequence[RevlogId], items)
+
+    # FIXME@kaben: removed toggle_state.
+    # def toggle_state(self) -> NoteState:
+    #    return NoteState(self.col)
+
+    # FIXME@kaben: new logic needed here to select corresponding rows after
+    # state switch.
+    def get_new_items(self, old_items: Sequence[ItemId]) -> Sequence[CardId]:
+        return super().card_ids_from_note_ids(old_items)

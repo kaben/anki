@@ -28,6 +28,7 @@ Preferences = config_pb2.Preferences
 UndoStatus = collection_pb2.UndoStatus
 OpChanges = collection_pb2.OpChanges
 OpChangesWithCount = collection_pb2.OpChangesWithCount
+OpChangesWithCounts = collection_pb2.OpChangesWithCounts
 OpChangesWithId = collection_pb2.OpChangesWithId
 OpChangesAfterUndo = collection_pb2.OpChangesAfterUndo
 BrowserRow = search_pb2.BrowserRow
@@ -641,7 +642,7 @@ class Collection(DeprecatedNamesMixin):
         The reverse argument only applies when a BrowserColumns.Column is provided;
         otherwise the collection config defines whether reverse is set or not.
         """
-        mode = self._build_sort_mode(order, reverse, False)
+        mode = self._build_sort_mode(order, reverse, "C")
         return cast(
             Sequence[CardId], self._backend.search_cards(search=query, order=mode)
         )
@@ -657,16 +658,39 @@ class Collection(DeprecatedNamesMixin):
         To programmatically construct a search string, see .build_search_string().
         The order parameter is documented in .find_cards().
         """
-        mode = self._build_sort_mode(order, reverse, True)
+        mode = self._build_sort_mode(order, reverse, "N")
         return cast(
             Sequence[NoteId], self._backend.search_notes(search=query, order=mode)
+        )
+
+    def find_reviews(
+        self,
+        query: str,
+        order: bool | str | BrowserColumns.Column = False,
+        reverse: bool = False,
+    ) -> Sequence[RevlogId]:
+        """Return note ids matching the provided search.
+
+        To programmatically construct a search string, see .build_search_string().
+        The order parameter is documented in .find_cards().
+        """
+        # FIXME@kaben: False in arg 3 indicates sort-by-card. Switch to another
+        # method that allows for sort-by-review. Only relevant when order is bool.
+        # FIXME@kaben: this is clumsy, needs refactor.
+        # mode = self._build_sort_mode(order, reverse, True)
+        print(f'find_reviews(query: "{query}", order: {order}, reverse: {reverse})')
+        mode = self._build_sort_mode(order, reverse, "R")
+        return cast(
+            Sequence[RevlogId], self._backend.search_reviews(search=query, order=mode)
         )
 
     def _build_sort_mode(
         self,
         order: bool | str | BrowserColumns.Column,
         reverse: bool,
-        finding_notes: bool,
+        # FIXME@kaben: remove
+        # finding_notes: bool,
+        browser_mode: bool | str,
     ) -> search_pb2.SortOrder:
         if isinstance(order, str):
             return search_pb2.SortOrder(custom=order)
@@ -674,9 +698,13 @@ class Collection(DeprecatedNamesMixin):
             if order is False:
                 return search_pb2.SortOrder(none=generic_pb2.Empty())
             # order=True: set args to sort column and reverse from config
-            sort_key = BrowserConfig.sort_column_key(finding_notes)
+            # FIXME@kaben: remove
+            # sort_key = BrowserConfig.sort_column_key(finding_notes)
+            sort_key = BrowserConfig.sort_column_key(browser_mode)
             order = self.get_browser_column(self.get_config(sort_key))
-            reverse_key = BrowserConfig.sort_backwards_key(finding_notes)
+            # FIXME@kaben: remove
+            # reverse_key = BrowserConfig.sort_backwards_key(finding_notes)
+            reverse_key = BrowserConfig.sort_backwards_key(browser_mode)
             reverse = self.get_config(reverse_key)
         if isinstance(order, BrowserColumns.Column):
             if order.sorting != BrowserColumns.SORTING_NONE:
@@ -877,6 +905,18 @@ class Collection(DeprecatedNamesMixin):
 
     def set_browser_note_columns(self, columns: list[str]) -> None:
         self.set_config(BrowserConfig.ACTIVE_NOTE_COLUMNS_KEY, columns)
+        self._backend.set_active_browser_columns(columns)
+
+    def load_browser_review_columns(self) -> list[str]:
+        """Return the stored note column names and ensure the backend columns are set and in sync."""
+        columns = self.get_config(
+            BrowserConfig.ACTIVE_REVIEW_COLUMNS_KEY, BrowserDefaults.REVIEW_COLUMNS
+        )
+        self._backend.set_active_browser_columns(columns)
+        return columns
+
+    def set_browser_review_columns(self, columns: list[str]) -> None:
+        self.set_config(BrowserConfig.ACTIVE_REVIEW_COLUMNS_KEY, columns)
         self._backend.set_active_browser_columns(columns)
 
     # Config

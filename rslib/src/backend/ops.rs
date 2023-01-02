@@ -19,6 +19,7 @@ impl From<OpChanges> for pb::collection::OpChanges {
             config: c.changes.config,
             deck_config: c.changes.deck_config,
             mtime: c.changes.mtime,
+            revlog_entry: c.changes.revlog_entry,
             browser_table: c.requires_browser_table_redraw(),
             browser_sidebar: c.requires_browser_sidebar_redraw(),
             note_text: c.requires_note_text_redraw(),
@@ -47,6 +48,16 @@ impl From<OpOutput<usize>> for pb::collection::OpChangesWithCount {
     fn from(out: OpOutput<usize>) -> Self {
         pb::collection::OpChangesWithCount {
             count: out.output as u32,
+            changes: Some(out.changes.into()),
+        }
+    }
+}
+
+impl From<OpOutput<Vec<usize>>> for pb::collection::OpChangesWithCounts {
+    fn from(out: OpOutput<Vec<usize>>) -> Self {
+        pb::collection::OpChangesWithCounts {
+            //counts: out.output as Vec<u32>,
+            counts: out.output.into_iter().map(|count| count as u32).collect(),
             changes: Some(out.changes.into()),
         }
     }

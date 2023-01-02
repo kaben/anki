@@ -15,6 +15,7 @@ from anki.collection import (
     OpChanges,
     OpChangesAfterUndo,
     OpChangesWithCount,
+    OpChangesWithCounts,
     OpChangesWithId,
     Progress,
 )
@@ -35,6 +36,7 @@ ResultWithChanges = TypeVar(
     bound=Union[
         OpChanges,
         OpChangesWithCount,
+        OpChangesWithCounts,
         OpChangesWithId,
         OpChangesAfterUndo,
         ImportLogWithChanges,

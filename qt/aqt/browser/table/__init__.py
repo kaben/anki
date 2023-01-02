@@ -19,8 +19,8 @@ from aqt.qt import QColor
 from aqt.utils import tr
 
 Column = Columns.Column
-ItemId = Union[CardId, NoteId]
-ItemList = Union[Sequence[CardId], Sequence[NoteId]]
+ItemId = Union[CardId, NoteId, RevlogId]
+ItemList = Union[Sequence[CardId], Sequence[NoteId], Sequence[RevlogId]]
 
 
 @dataclass

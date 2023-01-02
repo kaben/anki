@@ -19,7 +19,7 @@ import anki  # pylint: disable=unused-import
 import anki.collection
 from anki import tags_pb2
 from anki._legacy import DeprecatedNamesMixin, deprecated
-from anki.collection import OpChanges, OpChangesWithCount
+from anki.collection import OpChanges, OpChangesWithCount, OpChangesWithCounts
 from anki.decks import DeckId
 from anki.notes import NoteId
 from anki.utils import ids2str
@@ -95,7 +95,8 @@ class TagManager(DeprecatedNamesMixin):
         "Rename provided tag and its children, returning number of changed notes."
         return self.col._backend.rename_tags(current_prefix=old, new_prefix=new)
 
-    def remove(self, space_separated_tags: str) -> OpChangesWithCount:
+    # def remove(self, space_separated_tags: str) -> OpChangesWithCount:
+    def remove(self, space_separated_tags: str) -> OpChangesWithCounts:
         "Remove the provided tag(s) and their children from notes and the tag list."
         return self.col._backend.remove_tags(val=space_separated_tags)
 
