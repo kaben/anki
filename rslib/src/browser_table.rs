@@ -13,6 +13,7 @@ use crate::{
     notetype::{CardTemplate, NotetypeKind},
     pb,
     prelude::*,
+    revlog::RevlogReviewKind,
     scheduler::{timespan::time_span, timing::SchedTimingToday},
     template::RenderedNode,
     text::html_to_text_line,
@@ -48,9 +49,6 @@ pub enum Column {
     SortField,
     #[strum(serialize = "noteTags")]
     Tags,
-
-    // The following five columns were added to support a version of Anki for detailed review
-    // feedback.
     RevlogId,
     RevlogMod,
     #[strum(serialize = "reviewedAt")]
@@ -59,6 +57,12 @@ pub enum Column {
     ReviewFeedback,
     #[strum(serialize = "reviewTags")]
     ReviewTags,
+    #[strum(serialize = "reviewButton")]
+    ReviewButton,
+    #[strum(serialize = "reviewLastIvl")]
+    ReviewLastInterval,
+    #[strum(serialize = "reviewType")]
+    ReviewType,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Display, EnumIter, EnumString)]
@@ -175,6 +179,9 @@ impl Column {
             Self::ReviewedAt => tr.reviewed_at(),
             Self::ReviewFeedback => tr.review_feedback(),
             Self::ReviewTags => tr.review_tags(),
+            Self::ReviewButton => tr.review_button(),
+            Self::ReviewLastInterval => tr.review_last_interval(),
+            Self::ReviewType => tr.card_stats_review_log_type(),
         }
         .into()
     }
@@ -234,6 +241,9 @@ impl Column {
             | Column::RevlogId
             | Column::RevlogMod
             | Column::ReviewedAt
+            | Column::ReviewButton
+            | Column::ReviewLastInterval
+            | Column::ReviewType
             | Column::Reps => Sorting::Descending,
         }
     }
@@ -473,6 +483,9 @@ impl RowContext {
             Column::ReviewedAt => self.reviewed_at_str(),
             Column::ReviewFeedback => self.review_feedback_str(),
             Column::ReviewTags => self.review_tags_str(),
+            Column::ReviewButton => self.review_button_str(),
+            Column::ReviewLastInterval => self.review_last_interval_str(),
+            Column::ReviewType => self.review_type_str(),
         })
     }
 
@@ -543,29 +556,29 @@ impl RowContext {
 
     /// Returns the average ease of the non-new cards or a hint if there aren't any.
     fn ease_str(&self) -> String {
-        let eases: Vec<u16> = self
-            .cards
-            .iter()
-            .filter(|c| c.ctype != CardType::New)
-            .map(|c| c.ease_factor)
-            .collect();
-        if eases.is_empty() {
-            self.tr.browsing_new().into()
-        } else {
-            format!("{}%", eases.iter().sum::<u16>() / eases.len() as u16 / 10)
+        match self.browser_mode {
+            BrowserMode::Cards | BrowserMode::Notes => {
+                let eases: Vec<u16> = self
+                    .cards
+                    .iter()
+                    .filter(|c| c.ctype != CardType::New)
+                    .map(|c| c.ease_factor)
+                    .collect();
+                if eases.is_empty() {
+                    self.tr.browsing_new().into()
+                } else {
+                    format!("{}%", eases.iter().sum::<u16>() / eases.len() as u16 / 10)
+                }
+            }
+            BrowserMode::Reviews => {
+                format!("{}", self.revlog_entries[0].ease_factor)
+            }
         }
     }
 
-    /// Returns the average interval of the review and relearn cards if there are any.
+    /// For cards or notes, returns the average interval of the review and relearn cards if there
+    /// are any. Otherwise returns the review interval.
     fn interval_str(&self) -> String {
-        // FIXME@kaben: Remove.
-        //if !self.notes_mode {
-        //    match self.cards[0].ctype {
-        //        CardType::New => return self.tr.browsing_new().into(),
-        //        CardType::Learn => return self.tr.browsing_learning().into(),
-        //        CardType::Review | CardType::Relearn => (),
-        //    }
-        //}
         if self.browser_mode == BrowserMode::Cards {
             match self.cards[0].ctype {
                 CardType::New => return self.tr.browsing_new().into(),
@@ -573,21 +586,34 @@ impl RowContext {
                 CardType::Review | CardType::Relearn => (),
             }
         }
-        // FIXME@kaben: handle 'R' case.
-        let intervals: Vec<u32> = self
-            .cards
-            .iter()
-            .filter(|c| matches!(c.ctype, CardType::Review | CardType::Relearn))
-            .map(|c| c.interval)
-            .collect();
-        if intervals.is_empty() {
-            "".into()
-        } else {
-            time_span(
-                (intervals.iter().sum::<u32>() * 86400 / (intervals.len() as u32)) as f32,
-                &self.tr,
-                false,
-            )
+        match self.browser_mode {
+            BrowserMode::Cards | BrowserMode::Notes => {
+                let intervals: Vec<u32> = self
+                    .cards
+                    .iter()
+                    .filter(|c| matches!(c.ctype, CardType::Review | CardType::Relearn))
+                    .map(|c| c.interval)
+                    .collect();
+                if intervals.is_empty() {
+                    "".into()
+                } else {
+                    time_span(
+                        (intervals.iter().sum::<u32>() * 86400 / (intervals.len() as u32)) as f32,
+                        &self.tr,
+                        false,
+                    )
+                }
+            }
+            BrowserMode::Reviews => {
+                let ivl = self.revlog_entries[0].interval;
+                if ivl < 0 {
+                    self.tr
+                        .scheduling_answer_button_time_seconds(-ivl)
+                        .to_string()
+                } else {
+                    self.tr.scheduling_answer_button_time_days(ivl).to_string()
+                }
+            }
         }
     }
 
@@ -682,7 +708,7 @@ impl RowContext {
     /// Revlog entry feedback string
     fn review_feedback_str(&self) -> String {
         if self.revlog_entries.is_empty() {
-            "".into()
+            "(no reviews yet)".into()
         } else {
             self.revlog_entries[0].feedback.to_string()
         }
@@ -691,9 +717,60 @@ impl RowContext {
     /// Revlog entry tags as string
     fn review_tags_str(&self) -> String {
         if self.revlog_entries.is_empty() {
-            "".into()
+            "(no reviews yet)".into()
         } else {
             self.revlog_entries[0].tags.join(" ")
+        }
+    }
+
+    /// Which button you pushed to score your review
+    fn review_button_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let btn = self.revlog_entries[0].button_chosen;
+            match self.revlog_entries[0].button_chosen {
+                1 => format!("{} ({})", btn, self.tr.studying_again()),
+                2 => format!("{} ({})", btn, self.tr.studying_hard()),
+                3 => format!("{} ({})", btn, self.tr.studying_good()),
+                4 => format!("{} ({})", btn, self.tr.studying_easy()),
+                _ => format!("{}", btn),
+            }
+        }
+    }
+
+    fn review_last_interval_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let ivl = self.revlog_entries[0].last_interval;
+            if ivl < 0 {
+                self.tr
+                    .scheduling_answer_button_time_seconds(-ivl)
+                    .to_string()
+            } else {
+                self.tr.scheduling_answer_button_time_days(ivl).to_string()
+            }
+        }
+    }
+
+    fn review_type_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            match self.revlog_entries[0].review_kind {
+                RevlogReviewKind::Learning => {
+                    self.tr.card_stats_review_log_type_learn().to_string()
+                }
+                RevlogReviewKind::Review => self.tr.card_stats_review_log_type_review().to_string(),
+                RevlogReviewKind::Relearning => {
+                    self.tr.card_stats_review_log_type_relearn().to_string()
+                }
+                RevlogReviewKind::Filtered => {
+                    self.tr.card_stats_review_log_type_filtered().to_string()
+                }
+                RevlogReviewKind::Manual => self.tr.card_stats_review_log_type_manual().to_string(),
+            }
         }
     }
 
