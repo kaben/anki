@@ -18,7 +18,6 @@ use crate::{
 
 impl SearchService for Backend {
     fn build_search_string(&self, input: pb::search::SearchNode) -> Result<pb::generic::String> {
-        println!("SearchService::build_search_string(input: \"{:?}\")", input);
         let node: Node = input.try_into()?;
         Ok(SearchBuilder::from_root(node).write().into())
     }
@@ -47,13 +46,9 @@ impl SearchService for Backend {
         &self,
         input: pb::search::SearchRequest,
     ) -> Result<pb::search::SearchResponse> {
-        //FIXME@kaben: remove debugging output.
-        println!("SearchService::search_reviews(input: \"{:?}\")", input);
         self.with_col(|col| {
             let order = input.order.unwrap_or_default().value.into();
-            println!("SearchService::search_reviews(): order: {:?}", order);
             let rids = col.search_reviews(&input.search, order)?;
-            println!("SearchService::search_reviews(): rids: {:?}", rids);
             Ok(pb::search::SearchResponse {
                 ids: rids.into_iter().map(|v| v.0).collect(),
             })
