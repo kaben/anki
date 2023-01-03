@@ -189,6 +189,11 @@ impl Collection {
         N: TryIntoSearch,
         T: FromSql + AsReturnItemType,
     {
+        println!(
+            "fn Collection.search<T={:#?}, N={:#?}>()",
+            std::any::type_name::<T>(),
+            std::any::type_name::<N>(),
+        );
         let item_type = T::as_return_item_type();
         let top_node = search.try_into_search()?;
         let writer = SqlWriter::new(self, item_type);
@@ -197,6 +202,9 @@ impl Collection {
         self.add_order(&mut sql, item_type, mode)?;
 
         let mut stmt = self.storage.db.prepare(&sql)?;
+
+        println!("fn Collection.search(): stmt: {:?}", stmt);
+
         let ids: Vec<_> = stmt
             .query_map(params_from_iter(args.iter()), |row| row.get(0))?
             .collect::<std::result::Result<_, _>>()?;
@@ -383,11 +391,14 @@ fn card_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::Answer | Column::Custom | Column::Question => "".into(),
 
         // FIXME@kaben: change these sort criteria.
-        Column::RevlogId => "n.sfld collate nocase asc, c.ord asc".into(),
-        Column::RevlogMod => "n.sfld collate nocase asc, c.ord asc".into(),
-        Column::ReviewedAt => "n.sfld collate nocase asc, c.ord asc".into(),
-        Column::ReviewFeedback => "n.sfld collate nocase asc, c.ord asc".into(),
-        Column::ReviewTags => "n.sfld collate nocase asc, c.ord asc".into(),
+        Column::RevlogId => "c.id asc".into(),
+        Column::RevlogMod => "c.id asc".into(),
+        Column::ReviewedAt => "c.id asc".into(),
+        Column::ReviewFeedback => "c.id asc".into(),
+        Column::ReviewTags => "c.id asc".into(),
+        Column::ReviewButton => "c.id asc".into(),
+        Column::ReviewLastInterval => "c.id asc".into(),
+        Column::ReviewType => "c.id asc".into(),
     }
 }
 
@@ -409,11 +420,14 @@ fn note_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::Answer | Column::Custom | Column::Question => "".into(),
 
         // FIXME@kaben: change these sort criteria.
-        Column::RevlogId => "n.sfld collate nocase asc".into(),
-        Column::RevlogMod => "n.sfld collate nocase asc".into(),
-        Column::ReviewedAt => "n.sfld collate nocase asc".into(),
-        Column::ReviewFeedback => "n.sfld collate nocase asc".into(),
-        Column::ReviewTags => "n.sfld collate nocase asc".into(),
+        Column::RevlogId => "n.id asc".into(),
+        Column::RevlogMod => "n.id asc".into(),
+        Column::ReviewedAt => "n.id asc".into(),
+        Column::ReviewFeedback => "n.id asc".into(),
+        Column::ReviewTags => "n.id asc".into(),
+        Column::ReviewButton => "n.id asc".into(),
+        Column::ReviewLastInterval => "n.id asc".into(),
+        Column::ReviewType => "n.id asc".into(),
     }
 }
 
