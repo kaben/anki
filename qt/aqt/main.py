@@ -1116,6 +1116,11 @@ title="{}" {}>{}</button>""".format(
             event.ignore()
             self.unloadProfileAndExit()
 
+        print("AnkiQt.closeEvent(): attempting to close ipy.")
+        self.ipy.close()
+        self.ipy.kernel_thread.kill()
+        self.ipy.kernel_thread.join()
+
     # Undo & autosave
     ##########################################################################
 
