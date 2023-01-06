@@ -678,7 +678,6 @@ class Collection(DeprecatedNamesMixin):
         # method that allows for sort-by-review. Only relevant when order is bool.
         # FIXME@kaben: this is clumsy, needs refactor.
         # mode = self._build_sort_mode(order, reverse, True)
-        print(f'find_reviews(query: "{query}", order: {order}, reverse: {reverse})')
         mode = self._build_sort_mode(order, reverse, "R")
         return cast(
             Sequence[RevlogId], self._backend.search_reviews(search=query, order=mode)
@@ -698,12 +697,8 @@ class Collection(DeprecatedNamesMixin):
             if order is False:
                 return search_pb2.SortOrder(none=generic_pb2.Empty())
             # order=True: set args to sort column and reverse from config
-            # FIXME@kaben: remove
-            # sort_key = BrowserConfig.sort_column_key(finding_notes)
             sort_key = BrowserConfig.sort_column_key(browser_mode)
             order = self.get_browser_column(self.get_config(sort_key))
-            # FIXME@kaben: remove
-            # reverse_key = BrowserConfig.sort_backwards_key(finding_notes)
             reverse_key = BrowserConfig.sort_backwards_key(browser_mode)
             reverse = self.get_config(reverse_key)
         if isinstance(order, BrowserColumns.Column):
