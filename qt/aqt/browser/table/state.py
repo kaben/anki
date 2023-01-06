@@ -223,9 +223,7 @@ class CardState(ItemState):
 
     def get_review(self, item: ItemId) -> RevlogEntry:
         """Get first review of card."""
-        print(f"CardState.get_review(item: {item})")
         if rids := self.get_review_ids([item]):
-            print(f"CardState.get_review(): rids: {rids}")
             return self.col.get_revlog_entry(rids[0])
         return None
 
