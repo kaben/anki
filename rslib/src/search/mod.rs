@@ -391,6 +391,8 @@ fn card_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::Answer | Column::Custom | Column::Question => "".into(),
 
         // FIXME@kaben: change these sort criteria.
+        Column::NoteId => "c.id asc".into(),
+        Column::CardId => "c.id asc".into(),
         Column::RevlogId => "c.id asc".into(),
         Column::RevlogMod => "c.id asc".into(),
         Column::ReviewedAt => "c.id asc".into(),
@@ -420,6 +422,8 @@ fn note_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::Answer | Column::Custom | Column::Question => "".into(),
 
         // FIXME@kaben: change these sort criteria.
+        Column::NoteId => "n.id asc".into(),
+        Column::CardId => "n.id asc".into(),
         Column::RevlogId => "n.id asc".into(),
         Column::RevlogMod => "n.id asc".into(),
         Column::ReviewedAt => "n.id asc".into(),

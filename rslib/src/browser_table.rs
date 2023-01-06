@@ -49,6 +49,8 @@ pub enum Column {
     SortField,
     #[strum(serialize = "noteTags")]
     Tags,
+    NoteId,
+    CardId,
     RevlogId,
     RevlogMod,
     #[strum(serialize = "reviewedAt")]
@@ -174,6 +176,8 @@ impl Column {
             Self::Reps => tr.scheduling_reviews(),
             Self::SortField => tr.browsing_sort_field(),
             Self::Tags => tr.editing_tags(),
+            Self::NoteId => tr.card_stats_note_id(),
+            Self::CardId => tr.card_stats_card_id(),
             Self::RevlogId => tr.revlog_id(),
             Self::RevlogMod => tr.revlog_modified(),
             Self::ReviewedAt => tr.reviewed_at(),
@@ -238,6 +242,8 @@ impl Column {
             | Column::Interval
             | Column::NoteCreation
             | Column::NoteMod
+            | Column::NoteId
+            | Column::CardId
             | Column::RevlogId
             | Column::RevlogMod
             | Column::ReviewedAt
@@ -478,6 +484,8 @@ impl RowContext {
             Column::Tags => self.note.tags.join(" "),
             Column::Notetype => self.notetype.name.to_owned(),
             Column::Custom => "".to_string(),
+            Column::NoteId => self.note_id_str(),
+            Column::CardId => self.card_id_str(),
             Column::RevlogId => self.revlog_id_str(),
             Column::RevlogMod => self.revlog_mod_str(),
             Column::ReviewedAt => self.reviewed_at_str(),
@@ -659,14 +667,15 @@ impl RowContext {
         })
     }
 
-    // The following five functions were added to support a version of Anki for detailed review
-    // feedback:
-    //
-    // - revlog_id_str()
-    // - revlog_mod_str()
-    // - reviewed_at_str()
-    // - review_feedback_str()
-    // - review_tags_str()
+    /// Note ID number as string
+    fn note_id_str(&self) -> String {
+        format!("{}", self.note.id)
+    }
+
+    /// Card ID number as string
+    fn card_id_str(&self) -> String {
+        format!("{}", self.cards[0].id)
+    }
 
     /// Revlog ID number as string
     fn revlog_id_str(&self) -> String {
