@@ -31,6 +31,7 @@ from anki._backend import RustBackend as _RustBackend
 from anki.collection import Collection, Config, OpChanges, UndoStatus
 from anki.decks import DeckDict, DeckId
 from anki.hooks import runHook
+from anki.jupyter import start_ipython_kernel  # type: ignore
 from anki.notes import NoteId
 from anki.sound import AVTag, SoundOrVideoTag
 from anki.utils import (
@@ -174,6 +175,7 @@ class AnkiQt(QMainWindow):
             or self.opts.safemode
         )
         try:
+            self.setupIPy()
             self.setupUI()
             self.setupAddons(args)
             self.finish_ui_setup()
@@ -1101,6 +1103,20 @@ title="{}" {}>{}</button>""".format(
         else:
             self.moveToState("overview")
 
+    # IPython kernel
+    ##########################################################################
+
+    def setupIPy(self):
+        print("Starting IPython kernel.")
+        self.ipy = start_ipython_kernel()
+        self.ipy.shell.push(dict(mw=self))
+
+    def shutdownIPy(self):
+        print("Stopping IPython kernel.")
+        self.ipy.close()
+        self.ipy.kernel_thread.exit()
+        self.ipy.kernel_thread.wait(1000)
+
     # App exit
     ##########################################################################
 
@@ -1115,11 +1131,7 @@ title="{}" {}>{}</button>""".format(
             # ignore the event for now, as we need time to clean up
             event.ignore()
             self.unloadProfileAndExit()
-
-        print("AnkiQt.closeEvent(): attempting to close ipy.")
-        self.ipy.close()
-        self.ipy.kernel_thread.kill()
-        self.ipy.kernel_thread.join()
+        self.shutdownIPy()
 
     # Undo & autosave
     ##########################################################################

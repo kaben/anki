@@ -80,6 +80,14 @@ mw: Optional[AnkiQt] = None  # set on init
 
 import aqt.forms
 
+from aqt import (  # isort:skip
+    about,
+    mediasync,
+    preferences,
+    review_stats,
+    stats,
+)
+
 # Dialog manager
 ##########################################################################
 # ensures only one copy of the window is open at once, and provides
@@ -97,9 +105,7 @@ import aqt.forms
 
 
 from aqt import addcards, addons, browser, editcurrent, filtered_deck  # isort:skip
-from aqt import console, stats, review_stats, about, preferences, mediasync  # isort:skip
 
-from anki.jupyter import start_kernel
 
 class DialogManager:
 
@@ -511,12 +517,6 @@ def _run(argv: Optional[list[str]] = None, exec: bool = True) -> Optional[AnkiAp
     global mw
     global profiler
 
-    ipy = start_kernel()
-    ipy.shell.push(dict(
-        mw=mw,
-        #aqt=aqt,
-    ))
-
     if argv is None:
         argv = sys.argv
 
@@ -682,7 +682,6 @@ def _run(argv: Optional[list[str]] = None, exec: bool = True) -> Optional[AnkiAp
     import aqt.main
 
     mw = aqt.main.AnkiQt(app, pm, backend, opts, args)
-    mw.ipy = ipy
     if exec:
         print("Starting main loop...")
         app.exec()

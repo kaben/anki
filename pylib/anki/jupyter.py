@@ -1,74 +1,41 @@
-from aqt.qt import *
-from ipykernel.kernelapp import IPKernelApp
-from ipykernel.embed import embed_kernel
-from zmq.eventloop import ioloop
+# Copyright: Ankitects Pty Ltd and contributors
+# License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+# type: ignore
 
 import asyncio
 import logging
 import sys
-import threading
-import trace
 
-_log = logging.getLogger(__name__)
-_log.setLevel(logging.DEBUG)
+from ipykernel.embed import embed_kernel
+from ipykernel.kernelapp import IPKernelApp
+
+from aqt.qt import *
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-
 # create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # add formatter to ch
 ch.setFormatter(formatter)
-
 # add ch to logger
-_log.addHandler(ch)
-
-# 'application' code
-_log.debug('debug message')
-_log.info('info message')
-_log.warning('warn message')
-_log.error('error message')
-_log.critical('critical message')
+log.addHandler(ch)
+# log.debug('debug message')
+# log.info('info message')
+# log.warning('warn message')
+# log.error('error message')
+# log.critical('critical message')
 
 
-class thread_with_trace(threading.Thread):
-  def __init__(self, *args, **keywords):
-    threading.Thread.__init__(self, *args, **keywords)
-    self.killed = False
- 
-  def start(self):
-    self.__run_backup = self.run
-    self.run = self.__run     
-    threading.Thread.start(self)
- 
-  def __run(self):
-    sys.settrace(self.globaltrace)
-    self.__run_backup()
-    self.run = self.__run_backup
- 
-  def globaltrace(self, frame, event, arg):
-    if event == 'call':
-      return self.localtrace
-    else:
-      return None
- 
-  def localtrace(self, frame, event, arg):
-    if self.killed:
-      if event == 'line':
-        raise SystemExit()
-    return self.localtrace
- 
-  def kill(self):
-    self.killed = True
-
-
+# Credit: `start_kernel()` is loosely based on code from PyXLL-Jupyter, GitHub
+# repo https://github.com/pyxll/pyxll-jupyter. Accessed 5 January 2023.
 
 if getattr(sys, "_ipython_kernel_running", None) is None:
     sys._ipython_kernel_running = False
 
 if getattr(sys, "_ipython_app", None) is None:
     sys._ipython_app = False
-
 
 
 class PushStdout:
@@ -89,7 +56,7 @@ class PushStdout:
         sys.stderr = self.__orig_stderr
 
 
-def start_kernel():
+def start_ipython_kernel():
     """starts the ipython kernel and returns the ipython app"""
     if sys._ipython_app and sys._ipython_kernel_running:
         return sys._ipython_app
@@ -98,8 +65,7 @@ def start_kernel():
     ipy_stdout = sys.stdout
     ipy_stderr = sys.stderr
 
-
-    # patch IPKernelApp.start so that it doesn't block
+    # Patch IPKernelApp.start() so that it doesn't block.
     def _IPKernelApp_start(self):
         nonlocal ipy_stdout, ipy_stderr
 
@@ -107,52 +73,47 @@ def start_kernel():
             self.poller.start()
         self.kernel.start()
 
-        # set up a timer to periodically poll the zmq ioloop
-        self.loop = ioloop.IOLoop.current()
+        # Run the kernel event loop in a separate thread. On one hand, this
+        # risks things like race conditions and deadlock. But on the other
+        # hand, without a separate thread, the Anki UI becomes unresponsive
+        # whenever a long-running operation is performed in IPythyon/Jupyter.
+        # For my use case, I prefer the former situation.
+        class Worker(QObject):
+            def __init__(self, loop, ipy_kernel_app):
+                super().__init__()
+                self.loop = loop
+                self.ipy_kernel_app = ipy_kernel_app
+
+            def run_once(self):
+                self.loop.stop()
+                self.loop.run_forever()
+
+            def run(self):
+                sys._ipython_kernel_running = True
+                while True:
+                    try:
+                        # Use the IPython stdout/stderr while running the kernel.
+                        # Without this, stdout/stderr print to the console from
+                        # which Anki was launched, rather than to
+                        # IPython/Jupyter.
+                        with PushStdout(ipy_stdout, ipy_stderr):
+                            self.run_once()
+                            if self.ipy_kernel_app.kernel.shell.exit_now:
+                                log.debug(
+                                    "IPython kernel stopping (%s)", self.connection_file
+                                )
+                                sys._ipython_kernel_running = False
+                                return
+                        QThread.msleep(20)
+                    except:
+                        log.error("Error polling Jupyter loop", exc_info=True)
+
         self.aloop = asyncio.get_event_loop()
-
-        _log.debug(f"_IPKernelApp_start(): self.kernel: {self.kernel}")
-        _log.debug(f"_IPKernelApp_start(): self.loop: {self.loop}")
-        _log.debug(f"_IPKernelApp_start(): self.aloop: {self.aloop}")
-
-        #try:
-        #    self.loop.start()
-        #except KeyboardInterrupt:
-        #    pass
-
-        def kernel_loop():
-            try:
-                self.aloop.run_forever()
-            except KeyboardInterrupt:
-                pass
-
-        self.kernel_thread = thread_with_trace(target=kernel_loop)
+        self.kernel_thread = QThread()
+        self.worker = Worker(self.aloop, self)
+        self.worker.moveToThread(self.kernel_thread)
+        self.kernel_thread.started.connect(self.worker.run)
         self.kernel_thread.start()
-
-        #def poll_ioloop():
-        #    try:
-        #        # Use the IPython stdout/stderr while running the kernel
-        #        with PushStdout(ipy_stdout, ipy_stderr):
-        #            # If the kernel has been closed then run the event loop until it gets to the
-        #            # stop event added by IPKernelApp.shutdown_request
-        #            if self.kernel.shell.exit_now:
-        #                _log.debug("IPython kernel stopping (%s)" % self.connection_file)
-        #                self.loop.start()
-        #                sys._ipython_kernel_running = False
-        #                return
-
-        #            # otherwise call the event loop but stop immediately if there are no pending events
-        #            self.loop.add_timeout(0, lambda: self.loop.add_callback(self.loop.stop))
-        #            self.loop.start()
-        #    except:
-        #        _log.error("Error polling Jupyter loop", exc_info=True)
-
-        #    #schedule_call(poll_ioloop, delay=0.1)
-        #    threading.Timer(0.1, poll_ioloop).start()
-
-        sys._ipython_kernel_running = True
-        ##schedule_call(poll_ioloop, delay=0.1)
-        #threading.Timer(0.1, poll_ioloop).start()
 
     IPKernelApp.start = _IPKernelApp_start
 
@@ -165,30 +126,31 @@ def start_kernel():
     if IPKernelApp.initialized():
         ipy = IPKernelApp.instance()
     else:
-        #ipy = IPKernelApp.instance(local_ns={})
+        # ipy = IPKernelApp.instance(local_ns={})
         ipy = IPKernelApp.instance()
         ipy.initialize([])
 
-    # call the API embed function, which will use the monkey-patched method above
+    # Call the API embed function, which will use the monkey-patched method above.
     embed_kernel(local_ns={})
 
-    # Keep a reference to the kernel even if this module is reloaded
+    # Keep a reference to the kernel even if this module is reloaded.
     sys._ipython_app = ipy
 
-    # Restore sys stdout/stderr and keep track of the IPython versions
+    # Restore sys stdout/stderr and keep track of the IPython versions.
     ipy_stdout = sys.stdout
     ipy_stderr = sys.stderr
     sys.stdout = sys_stdout
     sys.stderr = sys_stderr
 
-    # patch user_global_ns so that it always references the user_ns dict
-    setattr(ipy.shell.__class__, 'user_global_ns', property(lambda self: self.user_ns))
+    # Patch user_global_ns so that it always references the user_ns dict.
+    # (Without this, comprehensions raise `NameError: name ... is not defined`.
+    # because comprehensions only work with variables in a global scope.)
+    setattr(ipy.shell.__class__, "user_global_ns", property(lambda self: self.user_ns))
 
-    # patch ipapp so anything else trying to get a terminal app (e.g. ipdb) gets our IPKernalApp.
+    # Patch ipapp so anything else trying to get a terminal app (e.g. ipdb)
+    # gets our IPKernalApp..
     from IPython.terminal.ipapp import TerminalIPythonApp
+
     TerminalIPythonApp.instance = lambda: ipy
 
-    _log.debug("start_kernel() finishing.")
     return ipy
-
-
