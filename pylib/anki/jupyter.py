@@ -104,7 +104,7 @@ def start_ipython_kernel():
                                 )
                                 sys._ipython_kernel_running = False
                                 return
-                        QThread.msleep(20)
+                        QThread.msleep(25)
                     except:
                         log.error("Error polling Jupyter loop", exc_info=True)
 

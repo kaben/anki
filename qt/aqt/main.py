@@ -1115,7 +1115,7 @@ title="{}" {}>{}</button>""".format(
         print("Stopping IPython kernel.")
         self.ipy.close()
         self.ipy.kernel_thread.exit()
-        self.ipy.kernel_thread.wait(1000)
+        # self.ipy.kernel_thread.wait(1000)
 
     # App exit
     ##########################################################################
