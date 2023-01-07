@@ -39,7 +39,7 @@ pub(crate) enum DatabaseCheckProgress {
     Optimize,
     Cards,
     Notes { current: u32, total: u32 },
-    History,
+    History { current: u32, total: u32 },
 }
 
 impl CheckDatabaseOutput {
@@ -124,10 +124,10 @@ impl Collection {
         debug!("check notetypes");
         self.check_notetypes(&mut out, &mut progress_fn)?;
 
-        progress_fn(DatabaseCheckProgress::History, false);
+        // progress_fn(DatabaseCheckProgress::History, false);
 
         debug!("check review log");
-        self.check_revlog(&mut out)?;
+        self.check_revlog(&mut out, &mut progress_fn)?;
 
         debug!("missing decks");
         self.check_missing_deck_names(&mut out)?;
@@ -383,11 +383,28 @@ impl Collection {
         Ok(Arc::new(basic))
     }
 
-    fn check_revlog(&mut self, out: &mut CheckDatabaseOutput) -> Result<()> {
+    fn check_revlog<F>(&mut self, out: &mut CheckDatabaseOutput, mut progress_fn: F) -> Result<()>
+    where
+        F: FnMut(DatabaseCheckProgress, bool),
+    {
         let cnt = self.storage.fix_revlog_properties()?;
         if cnt > 0 {
             self.set_schema_modified()?;
             out.revlog_properties_invalid = cnt;
+        }
+
+        let entries = self.storage.get_revlog_entries_with_tags()?;
+        let total_entries = entries.len();
+        for (checked_entries, mut entry) in entries.into_iter().enumerate() {
+            progress_fn(
+                DatabaseCheckProgress::History {
+                    current: checked_entries as u32,
+                    total: total_entries as u32,
+                },
+                true,
+            );
+            let usn = entry.usn;
+            self.canonify_revlog_entry_tags(&mut entry, usn)?;
         }
 
         Ok(())

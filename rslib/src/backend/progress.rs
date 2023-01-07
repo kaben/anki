@@ -101,7 +101,11 @@ pub(super) fn progress_to_proto(progress: Option<Progress>, tr: &I18n) -> pb::co
                         stage_current = current;
                         tr.database_check_checking_notes()
                     }
-                    DatabaseCheckProgress::History => tr.database_check_checking_history(),
+                    DatabaseCheckProgress::History { current, total } => {
+                        stage_total = total;
+                        stage_current = current;
+                        tr.database_check_checking_history()
+                    }
                 }
                 .to_string();
                 pb::collection::progress::Value::DatabaseCheck(

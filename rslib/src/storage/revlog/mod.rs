@@ -118,8 +118,8 @@ impl SqliteStorage {
             .collect()
     }
 
-    // The following function was added to support a version of Anki for detailed review feedback.
-
+    // The following two functions were added to support a version of Anki for detailed review
+    // feedback.
     pub(crate) fn get_revlog_entries_for_note(&self, nid: NoteId) -> Result<Vec<RevlogEntry>> {
         self.db
             .prepare_cached(concat!(
@@ -127,6 +127,15 @@ impl SqliteStorage {
                 " INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?"
             ))?
             .query_and_then([nid], row_to_revlog_entry)?
+            .collect()
+    }
+    pub(crate) fn get_revlog_entries_with_tags(&self) -> Result<Vec<RevlogEntry>> {
+        self.db
+            .prepare_cached(concat!(
+                include_str!("get.sql"),
+                " WHERE revlog.tags IS NOT NULL and revlog.tags !=''"
+            ))?
+            .query_and_then([], row_to_revlog_entry)?
             .collect()
     }
 
