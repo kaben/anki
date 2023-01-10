@@ -190,6 +190,16 @@ impl SchedulerService for Backend {
         })
     }
 
+    fn replay_card_histories(
+        &self,
+        input: pb::cards::CardIds,
+    ) -> Result<pb::collection::OpChanges> {
+        let cids: Vec<_> = input.into();
+        //FIXME@kaben: remove debug output.
+        //println!("SchedulerServicere.play_card_histories()...");
+        self.with_col(|col| col.replay_card_histories(&cids).map(Into::into))
+    }
+
     fn reposition_defaults(
         &self,
         _input: pb::generic::Empty,

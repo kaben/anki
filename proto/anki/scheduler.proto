@@ -45,6 +45,7 @@ service SchedulerService {
   rpc CustomStudyDefaults(CustomStudyDefaultsRequest)
       returns (CustomStudyDefaultsResponse);
   rpc RepositionDefaults(generic.Empty) returns (RepositionDefaultsResponse);
+  rpc ReplayCardHistories(cards.CardIds) returns (collection.OpChanges);
 }
 
 message SchedulingState {

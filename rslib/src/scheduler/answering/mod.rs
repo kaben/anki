@@ -401,6 +401,179 @@ impl Collection {
         self.add_tags_to_notes_inner(&[nid], "leech")?;
         Ok(())
     }
+
+    pub fn replay_card_histories(&mut self, cids: &[CardId]) -> Result<OpOutput<()>> {
+        self.transact(Op::ReplayCardHistories, |col| {
+            let cards = col.all_cards_for_ids(cids, false)?;
+
+            let mut builder = col.as_builder();
+            builder.set_collection_path(":memory:");
+            let tcol = builder.build()?;
+
+            col.replay_card_histories_inner(&cards, tcol)
+        })
+    }
+
+    pub fn replay_card_histories_inner(
+        &mut self,
+        cards: &Vec<Card>,
+        mut tcol: Collection,
+    ) -> Result<()> {
+        let usn = Usn(0);
+        let mtime_secs = TimestampSecs(0);
+        let all_config = self.storage.get_all_config()?;
+        tcol.storage.set_all_config(all_config, usn, mtime_secs)?;
+
+        for card in cards {
+            //FIXME@kaben: remove debug output.
+            //println!("***** replay_card_histories_inner(): card ID: {0:?}", card.id);
+            let did = card.original_deck_id.or(card.deck_id);
+            let deck = self.storage.get_deck(did)?.or_not_found(did)?;
+
+            let deck_config_id = deck.config_id().or_invalid("home deck is filtered")?;
+            let deck_config = self
+                .get_deck_config(deck_config_id, true)?
+                .unwrap_or_default();
+            let mut tdeck_config = deck_config.clone();
+            tdeck_config.usn = usn;
+            tcol.add_or_update_deck_config(&mut tdeck_config)?;
+
+            let mut tdeck = deck.clone();
+            tdeck.id = DeckId(0);
+            tcol.storage.add_deck(&mut tdeck)?;
+            let tdid = tdeck.id;
+            //let tdeck_config_id = tdeck.config_id().or_invalid("home deck is filtered")?;
+
+            // Not transferring note type, fields, tags, or templates.
+
+            let note = self
+                .storage
+                .get_note(card.note_id)?
+                .or_not_found(card.note_id)?;
+            let mut tnote = note.clone();
+            tnote.id = NoteId(0);
+            tcol.storage.add_note(&mut tnote)?;
+            let tnid = tnote.id;
+
+            let mut tcard = Card::new(tnid, 0, tdid, 0);
+            tcard.id = card.id;
+            tcol.storage.add_or_update_card(&tcard)?;
+            tcard = tcol.storage.get_card(tcard.id)?.or_not_found(tcard.id)?;
+
+            let reviews = self.storage.get_revlog_entries_for_card(card.id)?;
+
+            for review in reviews {
+                //FIXME@kaben: remove debug output.
+                //println!("***** replay_card_histories_inner(): review ID: {0:?}", review.id);
+                let answered_at = TimestampMillis(review.id.0);
+                let now = answered_at.as_secs();
+
+                let states = tcol.get_scheduling_states_at(tcard.id, now)?;
+                let current_state = states.current;
+                let rating = match review.button_chosen {
+                    1 => Rating::Again,
+                    2 => Rating::Hard,
+                    3 => Rating::Good,
+                    4 => Rating::Easy,
+                    _ => panic!("Unknown button: {}", review.button_chosen),
+                };
+                let new_state = match rating {
+                    Rating::Again => states.again,
+                    Rating::Hard => states.hard,
+                    Rating::Good => states.good,
+                    Rating::Easy => states.easy,
+                };
+                let mut answer = CardAnswer {
+                    card_id: tcard.id,
+                    current_state,
+                    new_state,
+                    rating,
+                    answered_at,
+                    milliseconds_taken: review.taken_millis,
+                    custom_data: None,
+                };
+
+                tcol.answer_card_inner_at(&mut answer, now)?;
+
+                let treview = tcol
+                    .storage
+                    .get_revlog_entry(review.id)?
+                    .or_not_found(review.id)?;
+
+                let mut new_review = self
+                    .storage
+                    .get_revlog_entry(review.id)?
+                    .or_not_found(review.id)?;
+                new_review.interval = treview.interval;
+                new_review.last_interval = treview.last_interval;
+                new_review.ease_factor = treview.ease_factor;
+                new_review.review_kind = treview.review_kind;
+                new_review.mtime = treview.mtime;
+
+                self.update_revlog_entry_inner(&mut new_review)?;
+            }
+            tcard = tcol.storage.get_card(tcard.id)?.or_not_found(tcard.id)?;
+            let mut new_card = self.storage.get_card(card.id)?.or_not_found(card.id)?;
+            new_card.mtime = tcard.mtime;
+            new_card.ctype = tcard.ctype;
+            new_card.queue = tcard.queue;
+            new_card.due = tcard.due;
+            new_card.interval = tcard.interval;
+            new_card.ease_factor = tcard.ease_factor;
+            new_card.reps = tcard.reps;
+            new_card.lapses = tcard.lapses;
+            new_card.remaining_steps = tcard.remaining_steps;
+            new_card.original_due = tcard.original_due;
+
+            let existing = self.storage.get_card(card.id)?.or_not_found(card.id)?;
+            self.update_card_inner(&mut new_card, existing, usn)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn print_card_histories(&mut self, cards: &Vec<Card>) -> Result<()> {
+        let all_config = self.storage.get_all_config()?;
+        println!("***** print_card_histories(): all_config:");
+        for (key, value) in &all_config {
+            println!("******* key: {key:?}, value: {value:?}");
+        }
+
+        println!("***** print_card_histories(): cards:");
+        for card in cards {
+            println!("******* print_card_histories(): card:\n{card:?}");
+
+            let did = card.original_deck_id.or(card.deck_id);
+            let deck = self.storage.get_deck(did)?.or_not_found(did)?;
+            println!("******* print_card_histories(): deck:\n{deck:?}");
+
+            let deck_config_id = deck.config_id().or_invalid("home deck is filtered")?;
+            let deck_config = self
+                .get_deck_config(deck_config_id, true)?
+                .unwrap_or_default();
+            println!("******* print_card_histories(): deck_config:\n{deck_config:?}");
+
+            let note = self
+                .storage
+                .get_note(card.note_id)?
+                .or_not_found(card.note_id)?;
+            println!("******* print_card_histories(): note:\n{note:?}");
+
+            let notetype = self
+                .storage
+                .get_notetype(note.notetype_id)?
+                .or_not_found(note.notetype_id)?;
+            println!("******* print_card_histories(): notetype:\n{notetype:?}");
+
+            let reviews = self.storage.get_revlog_entries_for_card(card.id)?;
+
+            println!("******* print_card_histories(): reviews:");
+            for review in reviews {
+                println!("********* review: {review:?}");
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -646,6 +819,34 @@ mod test {
         // after the final 10 minute step, the queues should be empty
         col.answer_good();
         assert_counts!(col, 0, 0, 0);
+
+        Ok(())
+    }
+
+    // FIXME@kaben: Fix this bogus test. It exercises the function but doesn't have any meaningful
+    // test assertions.
+    #[test]
+    fn replay_card_histories() -> Result<()> {
+        let mut col = open_test_collection();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut note = nt.new_note();
+        col.add_note(&mut note, DeckId(1))?;
+        let post_answer = col.answer_again();
+        col.answer_hard();
+        col.answer_again();
+        col.answer_good();
+        col.answer_easy();
+        let card = col.storage.get_card(post_answer.card_id)?.unwrap();
+        let cards = vec![card];
+
+        let mut builder = col.as_builder();
+        builder.set_collection_path(":memory:");
+        let tcol = builder.build()?;
+
+        col.replay_card_histories_inner(&cards, tcol)?;
+
+        let x = false;
+        assert!(x, "Intentionally false assert.");
 
         Ok(())
     }
