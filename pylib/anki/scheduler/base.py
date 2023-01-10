@@ -220,6 +220,11 @@ class SchedulerBase(DeprecatedNamesMixin):
         request = ScheduleCardsAsNew(card_ids=non_new, log=False, restore_position=True)
         self.col._backend.schedule_cards_as_new(request)
 
+    def replay_card_histories(self, ids: Sequence[CardId]) -> OpChanges:
+        # FIXME@kaben: remove debug output.
+        # print(f"SchedulerBase.replay_card_histories(): ids: {ids}")
+        return self.col._backend.replay_card_histories(ids)
+
     # Repositioning new cards
     ##########################################################################
 

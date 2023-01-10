@@ -275,6 +275,7 @@
     <addaction name="menuFlag"/>
     <addaction name="separator"/>
     <addaction name="action_Info"/>
+    <addaction name="action_accel_replay"/>
    </widget>
    <widget class="QMenu" name="menu_Notes">
     <property name="title">
@@ -323,10 +324,16 @@
     <addaction name="separator"/>
     <addaction name="menuLayout"/>
    </widget>
+   <widget class="QMenu" name="menuqt_accel_reviews">
+    <property name="title">
+     <string>qt_accel_reviews</string>
+    </property>
+   </widget>
    <addaction name="menuEdit"/>
    <addaction name="menuqt_accel_view"/>
    <addaction name="menu_Notes"/>
    <addaction name="menu_Cards"/>
+   <addaction name="menuqt_accel_reviews"/>
    <addaction name="menuJump"/>
    <addaction name="menu_Help"/>
   </widget>
@@ -678,7 +685,7 @@
     <string>actions_create_copy</string>
    </property>
    <property name="shortcut">
-    <string notr="true">Ctrl+Alt+E</string>
+    <string notr="true"/>
    </property>
   </action>
   <action name="actionFullScreen">
@@ -744,6 +751,14 @@
   <action name="action_show_reviews">
    <property name="text">
     <string>browsing_show_reviews</string>
+   </property>
+  </action>
+  <action name="action_accel_replay">
+   <property name="text">
+    <string>qt_accel_replay</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+H</string>
    </property>
   </action>
  </widget>

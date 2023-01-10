@@ -32,6 +32,7 @@ from aqt.operations.collection import redo, undo
 from aqt.operations.note import remove_notes
 from aqt.operations.scheduling import (
     forget_cards,
+    replay_card_histories,
     reposition_new_cards_dialog,
     set_due_date_dialog,
     suspend_cards,
@@ -311,6 +312,7 @@ class Browser(QMainWindow):
         qconnect(f.action_set_due_date.triggered, self.set_due_date)
         qconnect(f.action_forget.triggered, self.forget_cards)
         qconnect(f.actionToggle_Suspend.triggered, self.suspend_selected_cards)
+        qconnect(f.action_accel_replay.triggered, self.replay_card_histories)
 
         def set_flag_func(desired_flag: int) -> Callable:
             return lambda: self.set_flag_of_selected_cards(desired_flag)
@@ -321,6 +323,10 @@ class Browser(QMainWindow):
             )
         self._update_flag_labels()
         qconnect(f.actionExport.triggered, self._on_export_notes)
+
+        # reviews
+        qconnect(f.action_review_stats.triggered, self.onReviewStats)
+        # qconnect(f.action_console.triggered, self.onConsole)
 
         # jumps
         qconnect(f.actionPreviousCard.triggered, self.onPreviousCard)
@@ -1013,6 +1019,13 @@ class Browser(QMainWindow):
             context=ScheduleCardsAsNew.Context.BROWSER,
         ):
             op.run_in_background()
+
+    @no_arg_trigger
+    @skip_if_selection_is_empty
+    @ensure_editor_saved
+    def replay_card_histories(self, *l, **kw) -> None:
+        cids = self.selected_cards()
+        replay_card_histories(parent=self, card_ids=cids).run_in_background()
 
     # Edit: selection
     ######################################################################

@@ -29,6 +29,7 @@ actions-rename-tag = Rename Tag
 actions-rename-with-parents = Rename with Parents
 actions-remove-tag = Remove Tag
 actions-replay-audio = Replay Audio
+actions-replay-card-histories = Replay Card Histories
 actions-reposition = Reposition
 actions-save = Save
 actions-search = Search

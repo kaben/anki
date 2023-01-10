@@ -22,6 +22,7 @@ qt-accel-note = N&ote
 qt-accel-notes = &Notes
 qt-accel-preferences = &Preferences
 qt-accel-previous-card = &Previous Card
+qt-accel-replay = &Replay Card Histories
 qt-accel-select-all = Select &All
 qt-accel-select-notes = Select &Notes
 qt-accel-support-anki = &Support Anki

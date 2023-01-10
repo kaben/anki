@@ -189,6 +189,16 @@ def suspend_cards(
     return CollectionOp(parent, lambda col: col.sched.suspend_cards(card_ids))
 
 
+def replay_card_histories(
+    *,
+    parent: QWidget,
+    card_ids: Sequence[CardId],
+) -> CollectionOp[OpChangesWithCount]:
+    # FIXME@kaben: remove debug output.
+    # print(f"replay_card_histories(): card_ids: {card_ids}")
+    return CollectionOp(parent, lambda col: col.sched.replay_card_histories(card_ids))
+
+
 def suspend_note(
     *,
     parent: QWidget,
