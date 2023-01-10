@@ -28,13 +28,21 @@ impl Collection {
         &mut self,
         deck_id: DeckId,
     ) -> Result<pb::scheduler::CustomStudyDefaultsResponse> {
+        let now = TimestampSecs::now();
+        self.custom_study_defaults_at(deck_id, now)
+    }
+    pub fn custom_study_defaults_at(
+        &mut self,
+        deck_id: DeckId,
+        now: TimestampSecs,
+    ) -> Result<pb::scheduler::CustomStudyDefaultsResponse> {
         // daily counts
         let deck = self.get_deck(deck_id)?.or_not_found(deck_id)?;
         let normal = deck.normal()?;
         let extend_new = normal.extend_new;
         let extend_review = normal.extend_review;
         let subtree = self
-            .deck_tree(Some(TimestampSecs::now()))?
+            .deck_tree(Some(now))?
             .get_deck(deck_id)
             .or_not_found(deck_id)?;
         let v3 = self.get_config_bool(BoolKey::Sched2021);

@@ -34,12 +34,19 @@ impl CardQueues {
     /// Increase the cutoff to the current time, and increase the learning count
     /// for any new cards that now fall within the cutoff.
     pub(super) fn update_learning_cutoff_and_count(&mut self) -> CutoffSnapshot {
+        let now = TimestampSecs::now();
+        self.update_learning_cutoff_and_count_at(now)
+    }
+    pub(super) fn update_learning_cutoff_and_count_at(
+        &mut self,
+        now: TimestampSecs,
+    ) -> CutoffSnapshot {
         let change = CutoffSnapshot {
             learning_count: self.counts.learning,
             learning_cutoff: self.current_learning_cutoff,
         };
         let last_ahead_cutoff = self.current_learn_ahead_cutoff();
-        self.current_learning_cutoff = TimestampSecs::now();
+        self.current_learning_cutoff = now;
         let new_ahead_cutoff = self.current_learn_ahead_cutoff();
         let new_learning_cards = self
             .intraday_learning

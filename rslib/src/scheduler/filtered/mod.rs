@@ -146,10 +146,11 @@ impl Collection {
     }
 
     fn get_next_filtered_deck_name(&self) -> NativeDeckName {
-        NativeDeckName::from_native_str(format!(
-            "Filtered Deck {}",
-            TimestampSecs::now().time_string()
-        ))
+        let now = TimestampSecs::now();
+        self.get_next_filtered_deck_name_at(now)
+    }
+    fn get_next_filtered_deck_name_at(&self, now: TimestampSecs) -> NativeDeckName {
+        NativeDeckName::from_native_str(format!("Filtered Deck {}", now.time_string()))
     }
 
     fn add_or_update_filtered_deck_inner(

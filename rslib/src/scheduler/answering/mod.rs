@@ -34,6 +34,7 @@ pub enum Rating {
     Easy,
 }
 
+#[derive(Debug)]
 pub struct CardAnswer {
     pub card_id: CardId,
     pub current_state: CardState,
@@ -98,7 +99,10 @@ impl CardStateUpdater {
     }
 
     fn secs_until_rollover(&self) -> u32 {
-        self.timing.next_day_at.elapsed_secs_since(self.now) as u32
+        self.secs_until_rollover_at(self.now)
+    }
+    fn secs_until_rollover_at(&self, now: TimestampSecs) -> u32 {
+        self.timing.next_day_at.elapsed_secs_since(now) as u32
     }
 
     fn into_card(self) -> Card {
@@ -186,8 +190,16 @@ impl Rating {
 impl Collection {
     /// Return the next states that will be applied for each answer button.
     pub fn get_scheduling_states(&mut self, cid: CardId) -> Result<SchedulingStates> {
+        let now = TimestampSecs::now();
+        self.get_scheduling_states_at(cid, now)
+    }
+    pub fn get_scheduling_states_at(
+        &mut self,
+        cid: CardId,
+        now: TimestampSecs,
+    ) -> Result<SchedulingStates> {
         let card = self.storage.get_card(cid)?.or_not_found(cid)?;
-        let ctx = self.card_state_updater(card)?;
+        let ctx = self.card_state_updater(card, now)?;
         let current = ctx.current_card_state();
         let state_ctx = ctx.state_context();
         Ok(current.next_states(&state_ctx))
@@ -195,8 +207,15 @@ impl Collection {
 
     /// Describe the next intervals, to display on the answer buttons.
     pub fn describe_next_states(&mut self, choices: SchedulingStates) -> Result<Vec<String>> {
-        let collapse_time = self.learn_ahead_secs();
         let now = TimestampSecs::now();
+        self.describe_next_states_at(choices, now)
+    }
+    pub fn describe_next_states_at(
+        &mut self,
+        choices: SchedulingStates,
+        now: TimestampSecs,
+    ) -> Result<Vec<String>> {
+        let collapse_time = self.learn_ahead_secs();
         let timing = self.timing_for_timestamp(now)?;
         let secs_until_rollover = timing.next_day_at.elapsed_secs_since(now).max(0) as u32;
 
@@ -247,6 +266,10 @@ impl Collection {
     }
 
     fn answer_card_inner(&mut self, answer: &mut CardAnswer) -> Result<()> {
+        let now = TimestampSecs::now();
+        self.answer_card_inner_at(answer, now)
+    }
+    fn answer_card_inner_at(&mut self, answer: &mut CardAnswer, now: TimestampSecs) -> Result<()> {
         let card = self
             .storage
             .get_card(answer.card_id)?
@@ -254,7 +277,7 @@ impl Collection {
         let original = card.clone();
         let usn = self.usn()?;
 
-        let mut updater = self.card_state_updater(card)?;
+        let mut updater = self.card_state_updater(card, now)?;
         answer.cap_answer_secs(updater.config.inner.cap_answer_time_to_secs);
         let current_state = updater.current_card_state();
         require!(
@@ -339,7 +362,7 @@ impl Collection {
         )
     }
 
-    fn card_state_updater(&mut self, card: Card) -> Result<CardStateUpdater> {
+    fn card_state_updater(&mut self, card: Card, now: TimestampSecs) -> Result<CardStateUpdater> {
         let timing = self.timing_today()?;
         let deck = self
             .storage
@@ -352,7 +375,7 @@ impl Collection {
             deck,
             config,
             timing,
-            now: TimestampSecs::now(),
+            now,
         })
     }
 

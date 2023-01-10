@@ -32,6 +32,9 @@ pub struct SchedulerInfo {
 impl Collection {
     pub fn scheduler_info(&mut self) -> Result<SchedulerInfo> {
         let now = TimestampSecs::now();
+        self.scheduler_info_at(now)
+    }
+    pub fn scheduler_info_at(&mut self, now: TimestampSecs) -> Result<SchedulerInfo> {
         if let Some(info) = self.state.scheduler_info {
             if now < info.timing.next_day_at {
                 return Ok(info);
@@ -45,11 +48,19 @@ impl Collection {
     }
 
     pub fn timing_today(&mut self) -> Result<SchedTimingToday> {
-        self.scheduler_info().map(|info| info.timing)
+        let now = TimestampSecs::now();
+        self.timing_at(now)
+    }
+    pub fn timing_at(&mut self, now: TimestampSecs) -> Result<SchedTimingToday> {
+        self.scheduler_info_at(now).map(|info| info.timing)
     }
 
     pub fn current_due_day(&mut self, delta: i32) -> Result<u32> {
-        Ok(((self.timing_today()?.days_elapsed as i32) + delta).max(0) as u32)
+        let now = TimestampSecs::now();
+        self.current_due_day_at(delta, now)
+    }
+    pub fn current_due_day_at(&mut self, delta: i32, now: TimestampSecs) -> Result<u32> {
+        Ok(((self.timing_at(now)?.days_elapsed as i32) + delta).max(0) as u32)
     }
 
     pub(crate) fn timing_for_timestamp(&mut self, now: TimestampSecs) -> Result<SchedTimingToday> {
@@ -85,12 +96,19 @@ impl Collection {
     /// In the server case, return the value set in the config, and
     /// fall back on UTC if it's missing/invalid.
     pub(crate) fn local_utc_offset_for_user(&mut self) -> Result<FixedOffset> {
+        let now = TimestampSecs::now();
+        self.local_utc_offset_for_user_at(now)
+    }
+    pub(crate) fn local_utc_offset_for_user_at(
+        &mut self,
+        now: TimestampSecs,
+    ) -> Result<FixedOffset> {
         let config_tz = self
             .get_configured_utc_offset()
             .and_then(|v| FixedOffset::west_opt(v * 60))
             .unwrap_or_else(|| FixedOffset::west_opt(0).unwrap());
 
-        let local_tz = TimestampSecs::now().local_utc_offset()?;
+        let local_tz = now.local_utc_offset()?;
 
         Ok(if self.server {
             config_tz

@@ -11,6 +11,7 @@ use crate::{
     card::{Card, CardId, CardQueue, CardType},
     collection::Collection,
     config::StringKey,
+    decks::DeckId,
     error::Result,
     prelude::*,
 };
