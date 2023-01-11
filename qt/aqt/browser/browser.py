@@ -324,10 +324,6 @@ class Browser(QMainWindow):
         self._update_flag_labels()
         qconnect(f.actionExport.triggered, self._on_export_notes)
 
-        # reviews
-        qconnect(f.action_review_stats.triggered, self.onReviewStats)
-        # qconnect(f.action_console.triggered, self.onConsole)
-
         # jumps
         qconnect(f.actionPreviousCard.triggered, self.onPreviousCard)
         qconnect(f.actionNextCard.triggered, self.onNextCard)

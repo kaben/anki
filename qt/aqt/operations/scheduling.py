@@ -193,7 +193,7 @@ def replay_card_histories(
     *,
     parent: QWidget,
     card_ids: Sequence[CardId],
-) -> CollectionOp[OpChangesWithCount]:
+) -> CollectionOp[OpChanges]:
     # FIXME@kaben: remove debug output.
     # print(f"replay_card_histories(): card_ids: {card_ids}")
     return CollectionOp(parent, lambda col: col.sched.replay_card_histories(card_ids))

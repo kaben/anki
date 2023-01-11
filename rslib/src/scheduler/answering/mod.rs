@@ -26,7 +26,8 @@ use crate::{
     prelude::*,
 };
 
-#[derive(Copy, Clone)]
+//FIXME@kaben: remove 'Debug' below.
+#[derive(Debug, Copy, Clone)]
 pub enum Rating {
     Again,
     Hard,
@@ -844,9 +845,6 @@ mod test {
         let tcol = builder.build()?;
 
         col.replay_card_histories_inner(&cards, tcol)?;
-
-        let x = false;
-        assert!(x, "Intentionally false assert.");
 
         Ok(())
     }
