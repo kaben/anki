@@ -62,13 +62,13 @@ impl SqlWriter<'_> {
     fn write_table_sql(&mut self) {
         let sql = match self.table {
             // FIXME@kaben: test next line,
-            RequiredTable::Reviews => "select r.id from revlog r where ",
+            RequiredTable::Reviews => "select r.id from reviews as r where ",
             RequiredTable::Cards => "select c.id from cards c where ",
             RequiredTable::Notes => "select n.id from notes n where ",
             // FIXME@kaben: test next fragment,
             RequiredTable::ReviewsAndCards => match self.item_type {
-                ReturnItemType::Reviews => "select r.id from revlog r, cards c where r.cid=c.id and ",
-                ReturnItemType::Cards => "select distinct c.id from revlog r, cards c where r.cid=c.id and ",
+                ReturnItemType::Reviews => "select r.id from reviews as r, cards c where r.cid=c.id and ",
+                ReturnItemType::Cards => "select distinct c.id from reviews as r, cards c where r.cid=c.id and ",
                 ReturnItemType::Notes => unreachable!(),
 
             },
@@ -81,13 +81,13 @@ impl SqlWriter<'_> {
 
             _ => match self.item_type {
             // FIXME@kaben: test next line,
-                ReturnItemType::Reviews => "select r.id from revlog r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
+                ReturnItemType::Reviews => "select r.id from reviews as r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
                 //ReturnItemType::Cards => "select c.id from cards c, notes n where c.nid=n.id and ",
                 //ReturnItemType::Notes => {
                 //    "select distinct n.id from cards c, notes n where c.nid=n.id and "
                 //}
-                ReturnItemType::Cards => "select distinct c.id from revlog r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
-                ReturnItemType::Notes => "select distinct n.id from revlog r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
+                ReturnItemType::Cards => "select distinct c.id from reviews as r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
+                ReturnItemType::Notes => "select distinct n.id from reviews as r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
             },
         };
         self.sql.push_str(sql);
@@ -302,7 +302,7 @@ impl SqlWriter<'_> {
         let target_cutoff_ms = today_cutoff.adding_secs(86_400 * days).as_millis();
         let day_before_cutoff_ms = today_cutoff.adding_secs(86_400 * (days - 1)).as_millis();
 
-        write!(self.sql, "c.id in (select cid from revlog where id").unwrap();
+        write!(self.sql, "c.id in (select cid from reviews as r where id").unwrap();
 
         match op {
             ">" => write!(self.sql, " >= {}", target_cutoff_ms),
@@ -651,11 +651,11 @@ impl SqlWriter<'_> {
         write!(
             self.sql,
             concat!(
-                "((SELECT coalesce(min(id) > {cutoff}, false) FROM revlog WHERE cid = c.id ",
+                "((SELECT coalesce(min(id) > {cutoff}, false) FROM reviews AS r WHERE cid = c.id ",
                 // Exclude manual reschedulings
                 "AND ease != 0) ",
                 // Logically redundant, speeds up query
-                "AND c.id IN (SELECT cid FROM revlog WHERE id > {cutoff}))"
+                "AND c.id IN (SELECT cid FROM reviews AS r WHERE id > {cutoff}))"
             ),
             cutoff = cutoff,
         )
@@ -920,8 +920,8 @@ mod test {
             s(ctx, "introduced:3").0,
             format!(
                 concat!(
-                    "(((SELECT coalesce(min(id) > {cutoff}, false) FROM revlog WHERE cid = c.id AND ease != 0) ",
-                    "AND c.id IN (SELECT cid FROM revlog WHERE id > {cutoff})))"
+                    "(((SELECT coalesce(min(id) > {cutoff}, false) FROM reviews AS r WHERE cid = c.id AND ease != 0) ",
+                    "AND c.id IN (SELECT cid FROM reviews AS r WHERE id > {cutoff})))"
                 ),
                 cutoff = (timing.next_day_at.0 - (86_400 * 3)) * 1_000,
             )
@@ -1014,14 +1014,14 @@ mod test {
         assert_eq!(
             s(ctx, "rated:2").0,
             format!(
-                "(c.id in (select cid from revlog where id >= {} and ease > 0))",
+                "(c.id in (select cid from reviews as r where id >= {} and ease > 0))",
                 (timing.next_day_at.0 - (86_400 * 2)) * 1_000
             )
         );
         assert_eq!(
             s(ctx, "rated:400:1").0,
             format!(
-                "(c.id in (select cid from revlog where id >= {} and ease = 1))",
+                "(c.id in (select cid from reviews as r where id >= {} and ease = 1))",
                 (timing.next_day_at.0 - (86_400 * 400)) * 1_000
             )
         );
@@ -1031,7 +1031,7 @@ mod test {
         assert_eq!(
             s(ctx, "resched:400").0,
             format!(
-                "(c.id in (select cid from revlog where id >= {} and ease = 0))",
+                "(c.id in (select cid from reviews as r where id >= {} and ease = 0))",
                 (timing.next_day_at.0 - (86_400 * 400)) * 1_000
             )
         );

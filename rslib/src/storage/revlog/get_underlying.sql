@@ -6,8 +6,5 @@ SELECT revlog.id,
   cast(revlog.lastIvl AS integer),
   revlog.factor,
   revlog.time,
-  revlog.type,
-  revlog.mod,
-  revlog.feedback,
-  revlog.tags
-FROM reviews AS revlog
+  revlog.type
+FROM revlog

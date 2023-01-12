@@ -77,12 +77,25 @@ impl SqliteStorage {
         entry: &RevlogEntry,
         uniquify: bool,
     ) -> Result<Option<RevlogId>> {
+        let mut available_id = entry.id.0;
+        if uniquify {
+            // Search for an ID that either isn't being used, or has been "deleted".
+            while available_id < entry.id.0 + 1000 {
+                match self.db.query_row(
+                    "SELECT id FROM reviews WHERE id == ? AND vis IN ('V', 'D')",
+                    [available_id],
+                    |row| row.get::<_, i64>(0)
+                ) {
+                    Err(e) => break,
+                    _ => available_id = available_id + 1,
+                }
+            }
+        }
         let added = self
             .db
             .prepare_cached(include_str!("add.sql"))?
             .execute(params![
-                uniquify,
-                entry.id,
+                available_id,
                 entry.cid,
                 entry.usn,
                 entry.button_chosen,
@@ -92,7 +105,7 @@ impl SqliteStorage {
                 entry.taken_millis,
                 entry.review_kind as u8
             ])?;
-        Ok((added > 0).then(|| RevlogId(self.db.last_insert_rowid())))
+        Ok(Some(RevlogId(entry.id.0)))
     }
 
     pub(crate) fn get_revlog_entry(&self, id: RevlogId) -> Result<Option<RevlogEntry>> {
@@ -106,7 +119,8 @@ impl SqliteStorage {
     /// Only intended to be used by the undo code, as Anki can not sync revlog deletions.
     pub(crate) fn remove_revlog_entry(&self, id: RevlogId) -> Result<()> {
         self.db
-            .prepare_cached("delete from revlog where id = ?")?
+            //.prepare_cached("delete from revlog where id = ?")?
+            .prepare_cached("delete from reviews where id = ?")?
             .execute([id])?;
         Ok(())
     }

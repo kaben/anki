@@ -1,4 +1,4 @@
-UPDATE revlog
+UPDATE reviews AS revlog
 SET id = ?,
   cid = ?,
   usn = ?,

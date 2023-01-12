@@ -380,7 +380,7 @@ class Anki2Importer(Importer):
 
             # FIXME@kaben: This breaks compatibility with standard Anki due to extra columns.
             for rev in self.src.db.execute(
-                "select id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags from revlog where cid = ?",
+                "select id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags from reviews AS revlog where cid = ?",
                 scid,
             ):
                 rev = list(rev)
@@ -397,7 +397,7 @@ insert or ignore into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         # FIXME@kaben: This breaks compatibility with standard Anki due to extra columns.
         self.dst.db.executemany(
             """
-insert or ignore into revlog (id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags) values (?,?,?,?,?,?,?,?,?,?,?,?)""",
+insert or ignore into reviews AS revlog (id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags) values (?,?,?,?,?,?,?,?,?,?,?,?)""",
             revlog,
         )
 

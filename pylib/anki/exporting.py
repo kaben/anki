@@ -246,11 +246,11 @@ class AnkiExporter(Exporter):
         # FIXME@kaben: This breaks compatibility with standard Anki due to extra columns.
         if self.includeSched:
             data = self.src.db.all(
-                "select id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags from revlog where cid in "
+                "select id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags from reviews AS revlog where cid in "
                 + ids2str(cids)
             )
             self.dst.db.executemany(
-                "insert into revlog (id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags) values (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "insert into reviews AS revlog (id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags) values (?,?,?,?,?,?,?,?,?,?,?,?)",
                 data,
             )
         else:

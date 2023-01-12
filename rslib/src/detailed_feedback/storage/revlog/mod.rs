@@ -85,7 +85,7 @@ impl SqliteStorage {
 
     //pub(crate) fn get_revlog_ids_for_card(&self, cid: CardId) -> Result<Vec<RevlogId>> {
     //    self.db
-    //        .prepare_cached("SELECT id FROM revlog WHERE revlog.cid=?")?
+    //        .prepare_cached("SELECT id FROM reviews AS revlog WHERE revlog.cid=?")?
     //        .query_and_then([cid], |row| Ok(RevlogId(row.get(0)?)))?
     //        .collect()
     //}
@@ -93,7 +93,7 @@ impl SqliteStorage {
     //pub(crate) fn get_revlog_ids_for_note(&self, nid: NoteId) -> Result<Vec<RevlogId>> {
     //    self.db
     //        .prepare_cached(
-    //            "SELECT id FROM revlog INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?",
+    //            "SELECT id FROM reviews AS revlog INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?",
     //        )?
     //        .query_and_then([nid], |row| Ok(RevlogId(row.get(0)?)))?
     //        .collect()

@@ -2,4 +2,4 @@ SELECT id,
   mod,
   usn,
   tags
-FROM revlog
+FROM reviews AS revlog

@@ -43,17 +43,34 @@ impl SqliteStorage {
         // Below are calls to support a version of Anki for detailed review feedback.
         //
         // The methods below are defined in detailed_feedback/storage/upgrades/mod.rs:
+        // - database_has_table()
         // - table_has_column()
         // - run_schema_extended_version_upgrade()
+        // - run_schema_ankimath_version_upgrade()
         // - db_extended_version()
         // - run_schema_202212011756()
         //
-        if !self.table_has_column("col", "extended_version")? {
-            self.run_schema_extended_version_upgrade()?;
+
+        //if !self.table_has_column("col", "extended_version")? {
+        //    self.run_schema_extended_version_upgrade()?;
+        //}
+        //let extended_version: u64 = self.db_extended_version()?;
+        //if extended_version < 202212011756 {
+        //    self.run_schema_202212011756_upgrade()?;
+        //}
+
+        //if extended_version < 202212011756 {
+        //    self.run_schema_202212011756_upgrade()?;
+        //}
+
+        if !self.database_has_table("ankimath_info")? {
+            self.run_schema_ankimath_version_upgrade()?;
+            assert!(self.database_has_table("ankimath_info")?);
         }
-        let extended_version: u64 = self.db_extended_version()?;
-        if extended_version < 202212011756 {
-            self.run_schema_202212011756_upgrade()?;
+        let ankimath_version: u64 = self.db_ankimath_version()?;
+
+        if ankimath_version < 202301121442 {
+            self.run_schema_202301121442_upgrade()?;
         }
 
         // in some future schema upgrade, we may want to change

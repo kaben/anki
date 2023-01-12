@@ -48,12 +48,12 @@ def test_get_revlog_entry():
     col_cids.sort()
     last_cid = col_cids[-1]
     col.db.scalar(
-        f"UPDATE revlog SET feedback = 'this is some feedback', tags = ' tag1 tag2 ' WHERE cid = {last_cid}"
+        f"UPDATE reviews AS revlog SET feedback = 'this is some feedback', tags = ' tag1 tag2 ' WHERE cid = {last_cid}"
     )
 
     # Read the database entry for the last review.
     revlog_rows = col.db.all(
-        f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM revlog WHERE cid = {last_cid}"
+        f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM reviews AS revlog WHERE cid = {last_cid}"
     )
     revlog_row = revlog_rows[0]
     revlog_id = revlog_row[0]
@@ -91,7 +91,7 @@ def test_update_revlog_entries():
 
     # Read the database entry for the last review.
     revlog_rows = col.db.all(
-        f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM revlog WHERE cid = {last_cid}"
+        f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM reviews AS revlog WHERE cid = {last_cid}"
     )
     revlog_row = revlog_rows[0]
     revlog_id = revlog_row[0]
@@ -117,7 +117,7 @@ def test_update_revlog_entries():
     )
     col.update_revlog_entry(new_revlog_entry)
     revlog_rows = col.db.all(
-        f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM revlog WHERE id = {revlog_id}"
+        f"SELECT id,cid,usn,ease,ivl,lastIvl,factor,time,type,mod,feedback,tags FROM reviews AS revlog WHERE id = {revlog_id}"
     )
     revlog_row = revlog_rows[0]
 

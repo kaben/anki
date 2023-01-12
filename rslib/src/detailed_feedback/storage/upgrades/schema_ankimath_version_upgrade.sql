@@ -1,0 +1,3 @@
+CREATE TABLE ankimath_info (id INTEGER PRIMARY KEY, version INTEGER);
+INSERT INTO ankimath_info
+VALUES (1, 202212011737);
