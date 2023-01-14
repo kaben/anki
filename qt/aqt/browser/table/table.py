@@ -143,14 +143,23 @@ class Table:
 
     # Get ids
 
+    def get_card_ids(self, qids: list[QModelIndex]) -> Sequence[CardId]:
+        return self._model.get_card_ids(qids)
+
+    def get_note_ids(self, qids: list[QModelIndex]) -> Sequence[NoteId]:
+        return self._model.get_note_ids(qids)
+
+    def get_review_ids(self, qids: list[QModelIndex]) -> Sequence[RevlogId]:
+        return self._model.get_review_ids(qids)
+
     def get_selected_card_ids(self) -> Sequence[CardId]:
-        return self._model.get_card_ids(self._selected())
+        return self.get_card_ids(self._selected())
 
     def get_selected_note_ids(self) -> Sequence[NoteId]:
-        return self._model.get_note_ids(self._selected())
+        return self.get_note_ids(self._selected())
 
     def get_selected_review_ids(self) -> Sequence[RevlogId]:
-        return self._model.get_review_ids(self._selected())
+        return self.get_review_ids(self._selected())
 
     def get_card_ids_from_selected_note_ids(self) -> Sequence[CardId]:
         return self._state.card_ids_from_note_ids(self.get_selected_note_ids())
@@ -347,38 +356,38 @@ class Table:
     def to_last_row(self) -> None:
         self._move_current_to_row(self._model.len_rows() - 1)
 
-    def to_row_of_unselected_note(self) -> Sequence[NoteId]:
-        """Select and set focus to a row whose note is not selected, trying
+    def to_row_of_unselected_item(self) -> list[QModelIndex]:
+        """Select and set focus to a row whose item is not selected, trying
         the rows below the bottomost, then above the topmost selected row.
         If that's not possible, clear selection.
-        Return previously selected note ids.
+        Return previously selected QModelIndex ids.
         """
-        nids = self.get_selected_note_ids()
+        qids = self._selected()
 
         bottom = max(r.row() for r in self._selected()) + 1
         for row in range(bottom, self.len()):
             index = self._model.index(row, 0)
             if self._model.get_row(index).is_disabled:
                 continue
-            if self._model.get_note_id(index) in nids:
+            if index in qids:
                 continue
             self._move_current_to_row(row)
-            return nids
+            return qids
 
         top = min(r.row() for r in self._selected()) - 1
         for row in range(top, -1, -1):
             index = self._model.index(row, 0)
             if self._model.get_row(index).is_disabled:
                 continue
-            if self._model.get_note_id(index) in nids:
+            if index in qids:
                 continue
             self._move_current_to_row(row)
-            return nids
+            return qids
 
         self._reset_selection()
         self.browser.on_all_or_selected_rows_changed()
         self.browser.on_current_row_changed()
-        return nids
+        return qids
 
     def clear_current(self) -> None:
         self._view.selectionModel().setCurrentIndex(

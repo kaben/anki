@@ -603,6 +603,13 @@ class Collection(DeprecatedNamesMixin):
     def get_empty_cards(self) -> EmptyCardsReport:
         return self._backend.get_empty_cards()
 
+    # Reviews
+    ##########################################################################
+
+    def remove_reviews(self, revlog_ids: Sequence[RevlogId]) -> OpChangesWithCount:
+        hooks.reviews_will_be_deleted(self, revlog_ids)
+        return self._backend.remove_revlog_entries(revlog_ids=revlog_ids)
+
     # Card generation & field checksums/sort fields
     ##########################################################################
 

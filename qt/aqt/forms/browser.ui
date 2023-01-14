@@ -226,6 +226,8 @@
     <addaction name="actionClose"/>
     <addaction name="separator"/>
     <addaction name="actionCreateFilteredDeck"/>
+    <addaction name="separator"/>
+    <addaction name="actionDelete"/>
    </widget>
    <widget class="QMenu" name="menuJump">
     <property name="title">
@@ -297,7 +299,6 @@
     <addaction name="separator"/>
     <addaction name="actionManage_Note_Types"/>
     <addaction name="separator"/>
-    <addaction name="actionDelete"/>
    </widget>
    <widget class="QMenu" name="menuqt_accel_view">
     <property name="title">
@@ -756,6 +757,9 @@
   <action name="action_accel_replay">
    <property name="text">
     <string>qt_accel_replay</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+H</string>
    </property>
   </action>
  </widget>

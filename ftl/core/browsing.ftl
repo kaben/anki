@@ -79,6 +79,11 @@ browsing-reposition = Reposition...
 browsing-reposition-new-cards = Reposition New Cards
 browsing-reschedule = Reschedule
 browsing-review-initial = R
+browsing-reviews-deleted =
+    { $count ->
+        [one] { $count } review deleted.
+       *[other] { $count } reviews deleted.
+    }
 browsing-search-bar-hint = Search cards/notes (type text, then press Enter)
 browsing-search-in = Search in:
 browsing-search-within-formatting-slow = Search within formatting (slow)

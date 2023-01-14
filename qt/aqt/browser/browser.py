@@ -30,6 +30,7 @@ from aqt.import_export.exporting import ExportDialog
 from aqt.operations.card import set_card_deck, set_card_flag
 from aqt.operations.collection import redo, undo
 from aqt.operations.note import remove_notes
+from aqt.operations.revlog import remove_reviews
 from aqt.operations.scheduling import (
     forget_cards,
     replay_card_histories,
@@ -303,7 +304,7 @@ class Browser(QMainWindow):
         qconnect(f.actionFindDuplicates.triggered, self.onFindDupes)
         qconnect(f.actionFindReplace.triggered, self.onFindReplace)
         qconnect(f.actionManage_Note_Types.triggered, self.mw.onNoteTypes)
-        qconnect(f.actionDelete.triggered, self.delete_selected_notes)
+        qconnect(f.actionDelete.triggered, self.delete_selected_items)
 
         # cards
         qconnect(f.actionChange_Deck.triggered, self.set_deck_of_selected_cards)
@@ -810,7 +811,7 @@ class Browser(QMainWindow):
 
     @no_arg_trigger
     @skip_if_selection_is_empty
-    def delete_selected_notes(self) -> None:
+    def delete_selected_items(self) -> None:
         # ensure deletion is not accidentally triggered when the user is focused
         # in the editing screen or search bar
         focus = self.focusWidget()
@@ -818,11 +819,21 @@ class Browser(QMainWindow):
             return
 
         self.editor.set_note(None)
-        nids = self.table.to_row_of_unselected_note()
-        remove_notes(parent=self, note_ids=nids).run_in_background()
+
+        qids = self.table.to_row_of_unselected_item()
+        print(f"Browser.delete_selected_items(): qids: {qids}")
+        if self.table.is_notes_mode() or self.table.is_cards_mode():
+            nids = self.table.get_note_ids(qids)
+            print(f"Browser.delete_selected_items(): nids: {nids}")
+            remove_notes(parent=self, note_ids=nids).run_in_background()
+        elif self.table.is_reviews_mode():
+            rids = self.table.get_review_ids(qids)
+            print(f"Browser.delete_selected_items(): rids: {rids}")
+            remove_reviews(parent=self, review_ids=rids).run_in_background()
 
     # legacy
 
+    delete_selected_notes = delete_selected_items
     deleteNotes = delete_selected_notes
 
     # Deck change
