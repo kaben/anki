@@ -3,15 +3,14 @@
 - Local sync server:
 
   Need a local sync server handling `revlog` entry changes for the new
-  `feedback`, `tags`, and `mod` columns.
-
-  Anki-Math currently can't backup this information since it syncs revlog`
-  entry changes to the official Anki servers by omitting these new columns.
+  `feedback`, `tags`, and `mod` columns. Anki-Math currently can't backup this
+  information since it syncs `revlog` entry changes to the official Anki
+  servers by omitting these new columns.
 
   Make sure that Anki-Math to can optionally sync to either kind of server.
 
 - Replaying review history:
-  
+
   Need an option to select a card or cards in the browser, and replay the
   history of each selected card.
 
@@ -29,7 +28,7 @@
 
   This is for entering review information after the fact, when studying was
   done without a device running Anki immediately at hand for recording reviews.
-        
+
   Assuming mistakes will be made when manually entering this information, need
   to be able to correct mistakes. This includes changing the review timestamp
   and scoring, as well as deleting reviews. This presents two possible
@@ -58,6 +57,15 @@
   consistent with the rewritten review history. It seems that making the
   history consistent requires replaying the card's history.
 
+  - Need to troubleshoot the undo stack wrt replaying card histories.
+
+- Math problem variation.
+
+  Add a random-number generator that can be used to present variants of the
+  same math problem. Seed the random number generator with the date of the last
+  successful review, or the create date of the card if there are no reviews
+  yet.
+
 - Make Math mode optional, so that Anki-Math can look and feel like standard Anki.
 
 - Make sure that standard Anki still works with the local database. Not sure
@@ -68,3 +76,20 @@
   I could also try moving to a pair of databases for this. SQLite has an ATTACH
   DATABASE command that allows running queries with multiple databases; see
   https://simonwillison.net/2021/Feb/21/cross-database-queries/.
+
+- Refactoring:
+  - `Table.switch_to_note/card/review_state(...)`: need to simplify and dry out.
+  - Move code from *rslib/src/detailed_feedback/...* to more appropriate
+    locations.
+
+- Need to test:
+  - Importing
+  - Exporting
+  - After recent db refactor, anything having to do with SQL.
+  - Verify whether standard Anki can use and syncronize the refactored AnkiMath
+    db schema.
+  - Verify whether `revlog` changes sync between AnkiMath and Anki apps via the
+    Anki servers.
+
+- Documentation:
+  - Record info about the architecture of the AnkiMath db schema.
