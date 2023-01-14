@@ -51,4 +51,27 @@ impl RevlogService for Backend {
         })
         .map(Into::into)
     }
+
+    fn remove_revlog_entries(
+        &self,
+        input: pb::revlog::RemoveRevlogEntriesRequest,
+    ) -> Result<pb::collection::OpChangesWithCount> {
+        self.with_col(|col| {
+            let revlog_ids = input
+                .revlog_ids
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>();
+            col.remove_revlog_entries_undoable(&revlog_ids)
+        })
+        .map(Into::into)
+
+        //})?;
+        //Ok(pb::collection::OpChangesWithCount {
+        //    count: 0,
+        //    changes: Some(pb::collection::OpChanges {
+        //        ..Default::default()
+        //    }),
+        //})
+    }
 }

@@ -112,6 +112,37 @@ impl Collection {
         self.save_undo(UndoableRevlogChange::TagsUpdated(Box::new(original)));
         self.storage.update_revlog_tags(tags)
     }
+
+    pub(crate) fn remove_revlog_entries_undoable(
+        &mut self,
+        revlog_ids: &[RevlogId],
+    ) -> Result<OpOutput<usize>> {
+        let usn = self.usn()?;
+        self.transact(Op::RemoveRevlogEntry, |col| {
+            let revlog_entry_count = revlog_ids.len();
+            for revlog_id in revlog_ids {
+                col.remove_revlog_entry_inner(*revlog_id, usn)?;
+            }
+            Ok(revlog_entry_count)
+        })
+    }
+
+    pub(crate) fn remove_revlog_entry_inner(
+        &mut self,
+        revlog_id: RevlogId,
+        _usn: Usn,
+    ) -> Result<()> {
+        // FIXME@kaben: Add revlog graves entry or some other means of tracking deleted entries,
+        // because the official Anki servers won't track this info. Must first add revlog graves
+        // table, etc.
+        let revlog_entry = self
+            .storage
+            .get_revlog_entry(revlog_id)?
+            .or_not_found(revlog_id)?;
+        self.remove_revlog_entry_undoable(revlog_entry)
+
+        //Ok(())
+    }
 }
 
 /* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or

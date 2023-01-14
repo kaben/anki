@@ -60,6 +60,13 @@ impl Collection {
         Ok(id)
     }
 
+    /// Remove the provided revlog entry.
+    pub(crate) fn remove_revlog_entry_undoable(&mut self, entry: RevlogEntry) -> Result<()> {
+        self.storage.remove_revlog_entry(entry.id)?;
+        self.save_undo(UndoableRevlogChange::Removed(Box::new(entry)));
+        Ok(())
+    }
+
     /// Add the provided revlog entry, if its ID is unique.
     pub(crate) fn add_revlog_entry_if_unique_undoable(&mut self, entry: RevlogEntry) -> Result<()> {
         if self.storage.add_revlog_entry(&entry, false)?.is_some() {
