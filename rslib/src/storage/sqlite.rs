@@ -124,12 +124,14 @@ fn add_regexp_function(db: &Connection) -> rusqlite::Result<()> {
                 })?;
 
             let is_match = {
-                let text = ctx
-                    .get_raw(1)
-                    .as_str()
-                    .map_err(|e| rusqlite::Error::UserFunctionError(e.into()))?;
-
-                re.is_match(text)
+                let raw_ctx = ctx.get_raw(1);
+                let text_result = raw_ctx.as_str();
+                match text_result {
+                    Ok(text) => re.is_match(text),
+                    // Allow null fields resulting from SQL queries with left joins, in which case
+                    // return false to indicate no match for the regular expression.
+                    Err(ref _e) => false,
+                }
             };
 
             Ok(is_match)

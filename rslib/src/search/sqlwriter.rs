@@ -86,8 +86,11 @@ impl SqlWriter<'_> {
                 //ReturnItemType::Notes => {
                 //    "select distinct n.id from cards c, notes n where c.nid=n.id and "
                 //}
-                ReturnItemType::Cards => "select distinct c.id from reviews as r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
-                ReturnItemType::Notes => "select distinct n.id from reviews as r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
+
+                // FIXME@kaben: test regression where no search results returned when no reviews
+                // yet. This was resolved by using left join on reviews instead of inner join.
+                ReturnItemType::Cards => "SELECT DISTINCT c.id FROM notes AS n INNER JOIN cards AS c ON n.id == c.nid LEFT JOIN reviews AS r ON c.id == r.cid WHERE ",
+                ReturnItemType::Notes => "SELECT DISTINCT n.id FROM notes AS n INNER JOIN cards AS c ON n.id == c.nid LEFT JOIN reviews AS r ON c.id == r.cid WHERE ",
             },
         };
         self.sql.push_str(sql);
