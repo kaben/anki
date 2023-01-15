@@ -84,15 +84,14 @@ impl SqliteStorage {
                 match self.db.query_row(
                     "SELECT id FROM reviews WHERE id == ? AND vis IN ('V', 'D')",
                     [available_id],
-                    |row| row.get::<_, i64>(0)
+                    |row| row.get::<_, i64>(0),
                 ) {
-                    Err(e) => break,
-                    _ => available_id = available_id + 1,
+                    Err(_e) => break,
+                    _ => available_id += 1,
                 }
             }
         }
-        let added = self
-            .db
+        self.db
             .prepare_cached(include_str!("add.sql"))?
             .execute(params![
                 available_id,

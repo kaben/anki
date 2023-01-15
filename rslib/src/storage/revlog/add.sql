@@ -1,4 +1,4 @@
-INSERT INTO reviews as revlog (
+INSERT INTO reviews AS revlog (
     id,
     cid,
     usn,
