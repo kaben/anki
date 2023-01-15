@@ -1,7 +1,3 @@
-CREATE TABLE IF NOT EXISTS last_inserted_row (table_name text, id integer);
-INSERT INTO last_inserted_row (table_name, id) VALUES ('revlog', 0);
-INSERT INTO last_inserted_row (table_name, id) VALUES ('review_notes', 0);
-INSERT INTO last_inserted_row (table_name, id) VALUES ('reviews', 0);
 DROP VIEW IF EXISTS reviews;
 CREATE TABLE IF NOT EXISTS review_notes (
   id integer PRIMARY KEY,
@@ -10,6 +6,15 @@ CREATE TABLE IF NOT EXISTS review_notes (
   mod INTEGER DEFAULT 0 NOT NULL,
   vis TEXT DEFAULT "" NOT NULL
 );
+CREATE INDEX IF NOT EXISTS ix_revlog_cid ON revlog (cid);
+CREATE INDEX IF NOT EXISTS ix_review_notes_feedback ON review_notes (feedback);
+CREATE INDEX IF NOT EXISTS ix_review_notes_tags ON review_notes (tags);
+CREATE INDEX IF NOT EXISTS ix_notes_tags ON notes (tags);
+CREATE INDEX IF NOT EXISTS ix_notes_tags ON notes (tags);
+CREATE INDEX IF NOT EXISTS idx_fields_name_ntid ON fields (name, ntid);
+CREATE INDEX IF NOT EXISTS idx_templates_name_ntid ON templates (name, ntid);
+CREATE INDEX IF NOT EXISTS idx_notetypes_name ON notetypes (name);
+CREATE INDEX IF NOT EXISTS idx_decks_name ON decks (name);
 CREATE VIEW IF NOT EXISTS reviews AS
 SELECT revlog.id,
   revlog.cid,
@@ -31,12 +36,8 @@ DROP TRIGGER IF EXISTS tr_aft_ins_on_revlog;
 CREATE TRIGGER IF NOT EXISTS tr_aft_ins_on_revlog
 AFTER
 INSERT ON revlog BEGIN
-UPDATE last_inserted_row SET id = 0 WHERE table_name = 'revlog';
-UPDATE last_inserted_row SET id = 0 WHERE table_name = 'review_notes';
 INSERT INTO review_notes
 VALUES (NEW.id, "", "", 0, 'D');
-UPDATE last_inserted_row SET id = NEW.id WHERE table_name = 'revlog';
-UPDATE last_inserted_row SET id = NEW.id WHERE table_name = 'review_notes';
 END;
 DROP TRIGGER IF EXISTS tr_aftr_del_on_revlog;
 DROP TRIGGER IF EXISTS tr_aft_del_on_revlog;
@@ -48,7 +49,6 @@ END;
 DROP TRIGGER IF EXISTS tr_nstd_ins_on_reviews;
 CREATE TRIGGER IF NOT EXISTS tr_nstd_ins_on_reviews INSTEAD OF
 INSERT ON reviews BEGIN
-UPDATE last_inserted_row SET id = 0 WHERE table_name = 'reviews';
 INSERT INTO revlog
 VALUES (
     NEW.id,
@@ -90,7 +90,6 @@ SET (feedback, tags, mod, vis) = (
       WHERE review_notes.id == NEW.id
     )
   );
-UPDATE last_inserted_row SET id = NEW.id WHERE table_name = 'reviews';
 END;
 DROP TRIGGER IF EXISTS tr_nstd_upd_usn_on_reviews;
 CREATE TRIGGER IF NOT EXISTS tr_nstd_upd_usn_on_reviews INSTEAD OF
