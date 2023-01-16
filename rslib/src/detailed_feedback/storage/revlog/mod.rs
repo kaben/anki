@@ -90,14 +90,15 @@ impl SqliteStorage {
     //        .collect()
     //}
 
-    //pub(crate) fn get_revlog_ids_for_note(&self, nid: NoteId) -> Result<Vec<RevlogId>> {
-    //    self.db
-    //        .prepare_cached(
-    //            "SELECT id FROM reviews AS revlog INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?",
-    //        )?
-    //        .query_and_then([nid], |row| Ok(RevlogId(row.get(0)?)))?
-    //        .collect()
-    //}
+    // FIXME@kaben: switch from inline SQL to SQL file.
+    pub(crate) fn get_revlog_ids_for_note(&self, nid: NoteId) -> Result<Vec<RevlogId>> {
+        self.db
+            .prepare_cached(
+                "SELECT id FROM reviews AS revlog INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?",
+            )?
+            .query_and_then([nid], |row| Ok(RevlogId(row.get(0)?)))?
+            .collect()
+    }
 }
 
 /* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or

@@ -129,6 +129,12 @@ class Note(DeprecatedNamesMixin):
     def card_ids(self) -> Sequence[anki.cards.CardId]:
         return self.col.card_ids_of_note(self.id)
 
+    def reviews(self) -> list[anki.revlog.RevlogEntry]:
+        return [self.col.get_revlog_entry(id) for id in self.review_ids()]
+
+    def review_ids(self) -> Sequence[anki.revlog.RevlogId]:
+        return self.col.review_ids_of_note(self.id)
+
     def note_type(self) -> NotetypeDict | None:
         return self.col.models.get(self.mid)
 

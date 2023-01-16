@@ -160,6 +160,16 @@ impl NotesService for Backend {
         })
     }
 
+    fn reviews_of_note(&self, input: pb::notes::NoteId) -> Result<pb::revlog::RevlogIds> {
+        self.with_col(|col| {
+            col.storage
+                .get_revlog_ids_for_note(NoteId(input.nid))
+                .map(|v| pb::revlog::RevlogIds {
+                    rids: v.into_iter().map(Into::into).collect(),
+                })
+        })
+    }
+
     fn get_single_notetype_of_notes(
         &self,
         input: pb::notes::NoteIds,

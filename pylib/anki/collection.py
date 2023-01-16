@@ -550,6 +550,9 @@ class Collection(DeprecatedNamesMixin):
     def card_ids_of_note(self, note_id: NoteId) -> Sequence[CardId]:
         return [CardId(id) for id in self._backend.cards_of_note(note_id)]
 
+    def review_ids_of_note(self, note_id: NoteId) -> Sequence[RevlogId]:
+        return [RevlogId(id) for id in self._backend.reviews_of_note(note_id)]
+
     def defaults_for_adding(
         self, *, current_review_card: Card | None
     ) -> anki.notes.DefaultsForAdding:

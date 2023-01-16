@@ -11,6 +11,7 @@ import "anki/notetypes.proto";
 import "anki/collection.proto";
 import "anki/decks.proto";
 import "anki/cards.proto";
+import "anki/revlog.proto";
 
 service NotesService {
   rpc NewNote(notetypes.NotetypeId) returns (Note);
@@ -27,6 +28,7 @@ service NotesService {
       returns (FieldNamesForNotesResponse);
   rpc NoteFieldsCheck(Note) returns (NoteFieldsCheckResponse);
   rpc CardsOfNote(NoteId) returns (cards.CardIds);
+  rpc ReviewsOfNote(NoteId) returns (revlog.RevlogIds);
   rpc GetSingleNotetypeOfNotes(notes.NoteIds) returns (notetypes.NotetypeId);
 }
 
