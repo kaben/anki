@@ -606,6 +606,9 @@ class Collection(DeprecatedNamesMixin):
     def get_empty_cards(self) -> EmptyCardsReport:
         return self._backend.get_empty_cards()
 
+    def review_ids_of_card(self, card_id: CardId) -> Sequence[RevlogId]:
+        return [RevlogId(id) for id in self._backend.reviews_of_card(card_id)]
+
     # Reviews
     ##########################################################################
 

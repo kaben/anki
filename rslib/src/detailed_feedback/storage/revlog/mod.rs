@@ -83,12 +83,13 @@ impl SqliteStorage {
         Ok(())
     }
 
-    //pub(crate) fn get_revlog_ids_for_card(&self, cid: CardId) -> Result<Vec<RevlogId>> {
-    //    self.db
-    //        .prepare_cached("SELECT id FROM reviews AS revlog WHERE revlog.cid=?")?
-    //        .query_and_then([cid], |row| Ok(RevlogId(row.get(0)?)))?
-    //        .collect()
-    //}
+    // FIXME@kaben: switch from inline SQL to SQL file.
+    pub(crate) fn get_revlog_ids_for_card(&self, cid: CardId) -> Result<Vec<RevlogId>> {
+        self.db
+            .prepare_cached("SELECT id FROM reviews AS revlog WHERE revlog.cid=?")?
+            .query_and_then([cid], |row| Ok(RevlogId(row.get(0)?)))?
+            .collect()
+    }
 
     // FIXME@kaben: switch from inline SQL to SQL file.
     pub(crate) fn get_revlog_ids_for_note(&self, nid: NoteId) -> Result<Vec<RevlogId>> {

@@ -71,6 +71,16 @@ impl CardsService for Backend {
                 .map(Into::into)
         })
     }
+
+    fn reviews_of_card(&self, input: pb::cards::CardId) -> Result<pb::revlog::RevlogIds> {
+        self.with_col(|col| {
+            col.storage
+                .get_revlog_ids_for_card(CardId(input.cid))
+                .map(|v| pb::revlog::RevlogIds {
+                    rids: v.into_iter().map(Into::into).collect(),
+                })
+        })
+    }
 }
 
 impl TryFrom<pb::cards::Card> for Card {
