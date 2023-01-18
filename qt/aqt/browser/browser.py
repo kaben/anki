@@ -821,14 +821,11 @@ class Browser(QMainWindow):
         self.editor.set_note(None)
 
         qids = self.table.to_row_of_unselected_item()
-        print(f"Browser.delete_selected_items(): qids: {qids}")
         if self.table.is_notes_mode() or self.table.is_cards_mode():
             nids = self.table.get_note_ids(qids)
-            print(f"Browser.delete_selected_items(): nids: {nids}")
             remove_notes(parent=self, note_ids=nids).run_in_background()
         elif self.table.is_reviews_mode():
             rids = self.table.get_review_ids(qids)
-            print(f"Browser.delete_selected_items(): rids: {rids}")
             remove_reviews(parent=self, review_ids=rids).run_in_background()
 
     # legacy
