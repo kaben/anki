@@ -52,7 +52,7 @@ class ItemState(ABC):
     def review_ids_from_card_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
         return self.col.db.list(
             f"""
-            SELECT DISTINCT id FROM revlog
+            SELECT DISTINCT id FROM reviews
             WHERE cid IN {ids2str(items)}
             """
         )
@@ -63,8 +63,8 @@ class ItemState(ABC):
     def review_ids_from_note_ids(self, items: Sequence[ItemId]) -> Sequence[RevlogId]:
         return self.col.db.list(
             f"""
-            SELECT DISTINCT revlog.id FROM revlog
-            INNER JOIN cards ON revlog.cid = cards.id
+            SELECT DISTINCT reviews.id FROM reviews
+            INNER JOIN cards ON reviews.cid = cards.id
             WHERE cards.nid IN {ids2str(items)}
             """
         )
@@ -73,15 +73,15 @@ class ItemState(ABC):
         return self.col.db.list(
             f"""
             SELECT DISTINCT cards.nid FROM cards
-            INNER JOIN revlog ON cards.id = revlog.cid
-            WHERE revlog.id IN {ids2str(items)}
+            INNER JOIN reviews ON cards.id = reviews.cid
+            WHERE reviews.id IN {ids2str(items)}
             """
         )
 
     def card_ids_from_review_ids(self, items: Sequence[ItemId]) -> Sequence[CardId]:
         return self.col.db.list(
             f"""
-            SELECT DISTINCT cid FROM revlog
+            SELECT DISTINCT cid FROM reviews
             WHERE id IN {ids2str(items)}
             """
         )
