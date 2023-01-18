@@ -78,15 +78,30 @@ impl SqliteStorage {
         uniquify: bool,
     ) -> Result<Option<RevlogId>> {
         let mut available_id = entry.id.0;
+
         if uniquify {
-            // Search for an ID that either isn't being used, or has been "deleted".
+            // FIXME@kaben: test uniquify works.
             while available_id < entry.id.0 + 1000 {
                 match self.db.query_row(
-                    "SELECT id FROM reviews WHERE id == ? AND vis IN ('V', 'D')",
+                    "SELECT id FROM review_notes WHERE id == ? AND vis IN ('V', 'D')",
                     [available_id],
                     |row| row.get::<_, i64>(0),
                 ) {
-                    Err(_e) => break,
+                    Err(e) => {
+                        match e {
+                            rusqlite::Error::QueryReturnedNoRows => {
+                                //FIXME@kaben: remove debug output.
+                                //println!("***** SqliteStorage.add_revlog_entry(): found available_id:{available_id:?}");
+                                break;
+                            }
+                            _ => {
+                                return Err(AnkiError::db_error(
+                                    format!("error during search for available revlog ID: {e:?}"),
+                                    crate::error::DbErrorKind::Other,
+                                ))
+                            }
+                        }
+                    }
                     _ => available_id += 1,
                 }
             }
@@ -118,7 +133,6 @@ impl SqliteStorage {
     /// Only intended to be used by the undo code, as Anki can not sync revlog deletions.
     pub(crate) fn remove_revlog_entry(&self, id: RevlogId) -> Result<()> {
         self.db
-            //.prepare_cached("delete from revlog where id = ?")?
             .prepare_cached("delete from reviews where id = ?")?
             .execute([id])?;
         Ok(())
