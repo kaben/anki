@@ -8,6 +8,7 @@ import gc
 import os
 import re
 import signal
+import sys
 import weakref
 from argparse import Namespace
 from concurrent.futures import Future
@@ -1134,7 +1135,7 @@ title="{}" {}>{}</button>""".format(
 
     def setupIPy(self):
         print("Starting IPython kernel.")
-        self.ipy = start_ipython_kernel()
+        self.ipy = start_ipython_kernel(sys.stdout, sys.stderr)
         self.ipy.shell.push(dict(mw=self))
 
     def shutdownIPy(self):

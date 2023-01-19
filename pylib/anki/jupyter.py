@@ -56,14 +56,14 @@ class PushStdout:
         sys.stderr = self.__orig_stderr
 
 
-def start_ipython_kernel():
+def start_ipython_kernel(stdout, stderr):
     """starts the ipython kernel and returns the ipython app"""
     if sys._ipython_app and sys._ipython_kernel_running:
         return sys._ipython_app
 
     # The stdout/stderrs used by IPython. These get set after the kernel has started.
-    ipy_stdout = sys.stdout
-    ipy_stderr = sys.stderr
+    ipy_stdout = stdout
+    ipy_stderr = stderr
 
     # Patch IPKernelApp.start() so that it doesn't block.
     def _IPKernelApp_start(self):
@@ -119,8 +119,8 @@ def start_ipython_kernel():
 
     # IPython expects sys.__stdout__ to be set, and keep the original values to
     # be used after IPython has set its own.
-    sys.__stdout__ = sys_stdout = sys.stdout
-    sys.__stderr__ = sys_stderr = sys.stderr
+    sys.__stdout__ = sys_stdout = stdout
+    sys.__stderr__ = sys_stderr = stderr
 
     # Get or create the IPKernelApp instance and set the 'connection_dir' property
     if IPKernelApp.initialized():
