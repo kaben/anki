@@ -3,6 +3,9 @@
 black
 compare-locales
 isort
+jsonschema[format-nongpl]==4.17.3
+jupyter_existing_provisioner
+jupyterlab
 mock
 mypy
 mypy-protobuf
@@ -10,6 +13,8 @@ pip-tools
 pylint
 pytest
 PyChromeDevTools
+scipy
+seaborn
 fluent.syntax
 types-decorator
 types-flask
