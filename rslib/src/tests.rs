@@ -3,16 +3,16 @@
 
 #![cfg(test)]
 
-use tempfile::{tempdir, TempDir};
+use tempfile::tempdir;
+use tempfile::TempDir;
 
-use crate::{
-    collection::{open_test_collection, CollectionBuilder},
-    deckconfig::UpdateDeckConfigsRequest,
-    io::create_dir,
-    media::MediaManager,
-    pb::deckconfig::deck_configs_for_update::current_deck::Limits,
-    prelude::*,
-};
+use crate::collection::open_test_collection;
+use crate::collection::CollectionBuilder;
+use crate::deckconfig::UpdateDeckConfigsRequest;
+use crate::io::create_dir;
+use crate::media::MediaManager;
+use crate::pb::deckconfig::deck_configs_for_update::current_deck::Limits;
+use crate::prelude::*;
 
 pub(crate) fn open_fs_test_collection(name: &str) -> (Collection, TempDir) {
     let tempdir = tempdir().unwrap();
@@ -49,9 +49,8 @@ pub(crate) fn open_test_collection_with_relearning_card() -> Collection {
 impl Collection {
     pub(crate) fn add_media(&self, media: &[(&str, &[u8])]) {
         let mgr = MediaManager::new(&self.media_folder, &self.media_db).unwrap();
-        let mut ctx = mgr.dbctx();
         for (name, data) in media {
-            mgr.add_file(&mut ctx, name, data).unwrap();
+            mgr.add_file(name, data).unwrap();
         }
     }
 

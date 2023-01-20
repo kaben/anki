@@ -1,21 +1,21 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use std::{collections::HashMap, path::Path, time};
+use std::collections::HashMap;
+use std::path::Path;
+use std::time;
 
 use tracing::debug;
 
-use crate::{
-    io::read_dir_files,
-    media::{
-        database::{MediaDatabaseContext, MediaEntry},
-        files::{
-            filename_if_normalized, mtime_as_i64, sha1_of_file, MEDIA_SYNC_FILESIZE_LIMIT,
-            NONSYNCABLE_FILENAME,
-        },
-    },
-    prelude::*,
-};
+use crate::io::read_dir_files;
+use crate::media::files::filename_if_normalized;
+use crate::media::files::mtime_as_i64;
+use crate::media::files::sha1_of_file;
+use crate::media::files::NONSYNCABLE_FILENAME;
+use crate::prelude::*;
+use crate::sync::media::database::client::MediaDatabase;
+use crate::sync::media::database::client::MediaEntry;
+use crate::sync::media::MAX_INDIVIDUAL_MEDIA_FILE_SIZE;
 
 struct FilesystemEntry {
     fname: String,
@@ -24,7 +24,7 @@ struct FilesystemEntry {
     is_new: bool,
 }
 
-pub(super) struct ChangeTracker<'a, F>
+pub(crate) struct ChangeTracker<'a, F>
 where
     F: FnMut(usize) -> bool,
 {
@@ -37,7 +37,7 @@ impl<F> ChangeTracker<'_, F>
 where
     F: FnMut(usize) -> bool,
 {
-    pub(super) fn new(media_folder: &Path, progress: F) -> ChangeTracker<'_, F> {
+    pub(crate) fn new(media_folder: &Path, progress: F) -> ChangeTracker<'_, F> {
         ChangeTracker {
             media_folder,
             progress_cb: progress,
@@ -53,7 +53,7 @@ where
         }
     }
 
-    pub(super) fn register_changes(&mut self, ctx: &mut MediaDatabaseContext) -> Result<()> {
+    pub(crate) fn register_changes(&mut self, ctx: &MediaDatabase) -> Result<()> {
         ctx.transact(|ctx| {
             // folder mtime unchanged?
             let dirmod = mtime_as_i64(self.media_folder)?;
@@ -125,7 +125,7 @@ where
 
             // ignore large files and zero byte files
             let metadata = dentry.metadata()?;
-            if metadata.len() > MEDIA_SYNC_FILESIZE_LIMIT as u64 {
+            if metadata.len() > MAX_INDIVIDUAL_MEDIA_FILE_SIZE as u64 {
                 continue;
             }
             if metadata.len() == 0 {
@@ -171,7 +171,7 @@ where
         }
 
         // any remaining entries from the database have been deleted
-        let removed: Vec<_> = mtimes.into_iter().map(|(k, _)| k).collect();
+        let removed: Vec<_> = mtimes.into_keys().collect();
         for f in &removed {
             debug!(fname = f, "db entry missing on disk");
         }
@@ -184,7 +184,7 @@ where
     /// Skip files where the mod time differed, but checksums are the same.
     fn add_updated_entries(
         &mut self,
-        ctx: &mut MediaDatabaseContext,
+        ctx: &MediaDatabase,
         entries: Vec<FilesystemEntry>,
     ) -> Result<()> {
         for fentry in entries {
@@ -217,11 +217,7 @@ where
     }
 
     /// Remove deleted files from the media DB.
-    fn remove_deleted_files(
-        &mut self,
-        ctx: &mut MediaDatabaseContext,
-        removed: Vec<String>,
-    ) -> Result<()> {
+    fn remove_deleted_files(&mut self, ctx: &MediaDatabase, removed: Vec<String>) -> Result<()> {
         for fname in removed {
             ctx.set_entry(&MediaEntry {
                 fname,
@@ -242,17 +238,20 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::{fs, path::Path, time, time::Duration};
+    use std::fs;
+    use std::path::Path;
+    use std::time;
+    use std::time::Duration;
 
     use tempfile::tempdir;
 
-    use crate::{
-        error::Result,
-        io::{create_dir, write_file},
-        media::{
-            changetracker::ChangeTracker, database::MediaEntry, files::sha1_of_data, MediaManager,
-        },
-    };
+    use super::*;
+    use crate::error::Result;
+    use crate::io::create_dir;
+    use crate::io::write_file;
+    use crate::media::files::sha1_of_data;
+    use crate::media::MediaManager;
+    use crate::sync::media::database::client::MediaEntry;
 
     // helper
     fn change_mtime(p: &Path) {
@@ -273,9 +272,7 @@ mod test {
         let media_db = dir.path().join("media.db");
 
         let mgr = MediaManager::new(&media_dir, media_db)?;
-        let mut ctx = mgr.dbctx();
-
-        assert_eq!(ctx.count()?, 0);
+        assert_eq!(mgr.db.count()?, 0);
 
         // add a file and check it's picked up
         let f1 = media_dir.join("file.jpg");
@@ -283,11 +280,11 @@ mod test {
 
         change_mtime(&media_dir);
 
-        let progress_cb = |_n| true;
+        let mut progress_cb = |_n| true;
 
-        ChangeTracker::new(&mgr.media_folder, progress_cb).register_changes(&mut ctx)?;
+        mgr.register_changes(&mut progress_cb)?;
 
-        let mut entry = ctx.transact(|ctx| {
+        let mut entry = mgr.db.transact(|ctx| {
             assert_eq!(ctx.count()?, 1);
             assert!(!ctx.get_pending_uploads(1)?.is_empty());
             let mut entry = ctx.get_entry("file.jpg")?.unwrap();
@@ -320,9 +317,9 @@ mod test {
             Ok(entry)
         })?;
 
-        ChangeTracker::new(&mgr.media_folder, progress_cb).register_changes(&mut ctx)?;
+        ChangeTracker::new(&mgr.media_folder, progress_cb).register_changes(&mgr.db)?;
 
-        ctx.transact(|ctx| {
+        mgr.db.transact(|ctx| {
             assert_eq!(ctx.count()?, 1);
             assert!(!ctx.get_pending_uploads(1)?.is_empty());
             assert_eq!(
@@ -353,12 +350,12 @@ mod test {
 
         change_mtime(&media_dir);
 
-        ChangeTracker::new(&mgr.media_folder, progress_cb).register_changes(&mut ctx)?;
+        ChangeTracker::new(&mgr.media_folder, progress_cb).register_changes(&mgr.db)?;
 
-        assert_eq!(ctx.count()?, 0);
-        assert!(!ctx.get_pending_uploads(1)?.is_empty());
+        assert_eq!(mgr.db.count()?, 0);
+        assert!(!mgr.db.get_pending_uploads(1)?.is_empty());
         assert_eq!(
-            ctx.get_entry("file.jpg")?.unwrap(),
+            mgr.db.get_entry("file.jpg")?.unwrap(),
             MediaEntry {
                 fname: "file.jpg".into(),
                 sha1: None,

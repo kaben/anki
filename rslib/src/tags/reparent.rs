@@ -3,7 +3,8 @@
 
 use std::collections::HashMap;
 
-use super::{join_tags, matcher::TagMatcher};
+use super::join_tags;
+use super::matcher::TagMatcher;
 use crate::prelude::*;
 
 // FIXME@kaben: changed to update revlog entries, but can't test until drag and drop works.

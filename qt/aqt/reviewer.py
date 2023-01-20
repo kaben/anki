@@ -325,7 +325,6 @@ class Reviewer:
         self.web.allow_drops = True
         self.web.eval("_blockDefaultDragDropBehavior();")
         # show answer / ease buttons
-        self.bottom.web.show()
         self.bottom.web.stdHtml(
             self._bottomHTML(),
             css=["css/toolbar-bottom.css", "css/reviewer-bottom.css"],
@@ -631,23 +630,8 @@ class Reviewer:
 
         return re.sub(self.typeAnsPat, repl, buf)
 
-    def _contentForCloze(self, txt: str, idx: int) -> str:
-        matches = re.findall(r"\{\{c%s::(.+?)\}\}" % idx, txt, re.DOTALL)
-        if not matches:
-            return None
-
-        def noHint(txt: str) -> str:
-            if "::" in txt:
-                return txt.split("::")[0]
-            return txt
-
-        matches = [noHint(txt) for txt in matches]
-        uniqMatches = set(matches)
-        if len(uniqMatches) == 1:
-            txt = matches[0]
-        else:
-            txt = ", ".join(matches)
-        return txt
+    def _contentForCloze(self, txt: str, idx: int) -> str | None:
+        return self.mw.col.extract_cloze_for_typing(txt, idx) or None
 
     def _getTypedAnswer(self) -> None:
         self.web.evalWithCallback("getTypedAnswer();", self._onTypedAnswer)
@@ -706,7 +690,6 @@ time = %(time)d;
         else:
             maxTime = 0
         self.bottom.web.eval("showQuestion(%s,%d);" % (json.dumps(middle), maxTime))
-        self.bottom.web.adjustHeightToFit()
 
     def _showEaseButtons(self) -> None:
         middle = self._answerButtons()
