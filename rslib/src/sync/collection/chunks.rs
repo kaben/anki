@@ -12,7 +12,10 @@ use crate::card::CardQueue;
 use crate::card::CardType;
 use crate::notes::Note;
 use crate::prelude::*;
-use crate::revlog::RevlogEntry;
+// FIXME@kaben: next three lines: hack to sync with official anki servers.
+use crate::revlog::RevlogEntry as RevlogEntryX;
+use crate::revlog::RevlogReviewKind;
+use crate::serde::default_on_invalid;
 use crate::serde::deserialize_int_from_number;
 use crate::storage::card::data::card_data_string;
 use crate::storage::card::data::CardData;
@@ -25,6 +28,67 @@ use crate::sync::collection::start::ServerSyncState;
 use crate::sync::request::IntoSyncRequest;
 use crate::tags::join_tags;
 use crate::tags::split_tags;
+
+// FIXME@kaben: hack to sync with official anki servers.
+#[derive(Serialize_tuple, Deserialize, Debug, Default, PartialEq, Eq)]
+pub struct RevlogEntry {
+    pub id: RevlogId,
+    pub cid: CardId,
+    pub usn: Usn,
+    /// - In the V1 scheduler, 3 represents easy in the learning case.
+    /// - 0 represents manual rescheduling.
+    #[serde(rename = "ease")]
+    pub button_chosen: u8,
+    /// Positive values are in days, negative values in seconds.
+    #[serde(rename = "ivl", deserialize_with = "deserialize_int_from_number")]
+    pub interval: i32,
+    /// Positive values are in days, negative values in seconds.
+    #[serde(rename = "lastIvl", deserialize_with = "deserialize_int_from_number")]
+    pub last_interval: i32,
+    /// Card's ease after answering, stored as 10x the %, eg 2500 represents 250%.
+    #[serde(rename = "factor", deserialize_with = "deserialize_int_from_number")]
+    pub ease_factor: u32,
+    /// Amount of milliseconds taken to answer the card.
+    #[serde(rename = "time", deserialize_with = "deserialize_int_from_number")]
+    pub taken_millis: u32,
+    #[serde(rename = "type", default, deserialize_with = "default_on_invalid")]
+    pub review_kind: RevlogReviewKind,
+}
+
+// FIXME@kaben: hack to sync with official anki servers.
+impl From<RevlogEntryX> for RevlogEntry {
+    fn from(e: RevlogEntryX) -> Self {
+        RevlogEntry {
+            id: e.id,
+            cid: e.cid,
+            usn: e.usn,
+            button_chosen: e.button_chosen,
+            interval: e.interval,
+            last_interval: e.last_interval,
+            ease_factor: e.ease_factor,
+            taken_millis: e.taken_millis,
+            review_kind: e.review_kind,
+        }
+    }
+}
+
+// FIXME@kaben: hack to sync with official anki servers.
+impl From<RevlogEntry> for RevlogEntryX {
+    fn from(e: RevlogEntry) -> Self {
+        RevlogEntryX {
+            id: e.id,
+            cid: e.cid,
+            usn: e.usn,
+            button_chosen: e.button_chosen,
+            interval: e.interval,
+            last_interval: e.last_interval,
+            ease_factor: e.ease_factor,
+            taken_millis: e.taken_millis,
+            review_kind: e.review_kind,
+            ..Default::default()
+        }
+    }
+}
 
 pub(in crate::sync) struct ChunkableIds {
     revlog: Vec<RevlogId>,
@@ -169,7 +233,9 @@ impl Collection {
 
     fn merge_revlog(&self, entries: Vec<RevlogEntry>) -> Result<()> {
         for entry in entries {
-            self.storage.add_revlog_entry(&entry, false)?;
+            // FIXME@kaben: hack to sync with official anki servers.
+            //self.storage.add_revlog_entry(&entry, false)?;
+            self.storage.add_revlog_entry(&entry.into(), false)?;
         }
         Ok(())
     }
@@ -281,7 +347,8 @@ impl Collection {
                 self.storage.get_revlog_entry(id).map(|e| {
                     let mut e = e.unwrap();
                     e.usn = server_usn_if_client.unwrap_or(e.usn);
-                    e
+                    // FIXME@kaben: hack to sync with official anki servers.
+                    e.into()
                 })
             })
             .collect::<Result<_>>()?;
