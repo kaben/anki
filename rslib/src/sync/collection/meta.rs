@@ -24,6 +24,7 @@ use crate::sync::version::SYNC_VERSION_10_V2_TIMEZONE;
 use crate::sync::version::SYNC_VERSION_MAX;
 use crate::sync::version::SYNC_VERSION_MIN;
 use crate::version::sync_client_version;
+use crate::version::VersionInfo;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SyncMeta {
@@ -54,6 +55,7 @@ impl SyncMeta {
         &self,
         remote: SyncMeta,
         new_endpoint: Option<String>,
+        server_version: Option<VersionInfo>,
     ) -> ClientSyncState {
         let local = self;
         let required = if remote.modified == local.modified {
@@ -78,6 +80,7 @@ impl SyncMeta {
             server_message: remote.server_message,
             host_number: remote.host_number,
             new_endpoint,
+            server_version,
         }
     }
 }
@@ -86,7 +89,7 @@ impl HttpSyncClient {
     /// Fetch server meta. Returns a new endpoint if one was provided.
     pub(in crate::sync) async fn meta_with_redirect(
         &mut self,
-    ) -> Result<(SyncMeta, Option<String>)> {
+    ) -> Result<(SyncMeta, Option<String>, Option<VersionInfo>)> {
         let mut new_endpoint = None;
         let response = match self.meta(MetaRequest::request()).await {
             Ok(remote) => remote,
@@ -105,7 +108,7 @@ impl HttpSyncClient {
             err => err?,
         };
         let remote = response.json()?;
-        Ok((remote, new_endpoint))
+        Ok((remote, new_endpoint, response.server_version))
     }
 }
 
@@ -147,6 +150,7 @@ pub fn server_meta(req: MetaRequest, col: &mut Collection) -> HttpResult<SyncMet
         }
         .fail();
     }
+
     let mut meta = col.sync_meta().or_internal_err("sync meta")?;
     if meta.v2_scheduler_or_later && req.sync_version < SYNC_VERSION_09_V2_SCHEDULER {
         meta.server_message = "Your client does not support the v2 scheduler".into();

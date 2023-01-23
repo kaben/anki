@@ -20,8 +20,15 @@ use crate::sync::error::OrHttpErr;
 use crate::sync::request::header_and_stream::encode_zstd_body;
 use crate::sync::version::SyncVersion;
 use crate::version::sync_server_version;
+use crate::version::VersionInfo;
 
 pub static ORIGINAL_SIZE: HeaderName = HeaderName::from_static("anki-original-size");
+
+#[derive(Debug)]
+pub struct DataWithServerInfo {
+    pub buf: Vec<u8>,
+    pub server_version: Option<VersionInfo>,
+}
 
 /// Stores the data returned from a sync request, and the type
 /// it represents. Given a SyncResponse<Foo>, you can get a Foo
@@ -29,13 +36,22 @@ pub static ORIGINAL_SIZE: HeaderName = HeaderName::from_static("anki-original-si
 #[derive(Debug)]
 pub struct SyncResponse<T> {
     pub data: Vec<u8>,
+    pub server_version: Option<VersionInfo>,
     json_output_type: PhantomData<T>,
 }
 
 impl<T> SyncResponse<T> {
     pub fn from_vec(data: Vec<u8>) -> SyncResponse<T> {
+        SyncResponse::from_vec_with_server_version(data, None)
+    }
+
+    pub fn from_vec_with_server_version(
+        data: Vec<u8>,
+        server_version: Option<VersionInfo>,
+    ) -> SyncResponse<T> {
         SyncResponse {
             data,
+            server_version,
             json_output_type: Default::default(),
         }
     }

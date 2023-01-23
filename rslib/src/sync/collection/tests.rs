@@ -616,7 +616,9 @@ async fn regular_sync(ctx: &SyncTestContext) -> Result<()> {
         .unwrap()
         .json()
         .unwrap();
-    let out = col1.sync_meta()?.compared_to_remote(remote_meta, None);
+    let out = col1
+        .sync_meta()?
+        .compared_to_remote(remote_meta, None, None);
     assert_eq!(out.required, SyncActionRequired::NormalSyncRequired);
 
     let out = ctx.normal_sync(&mut col1).await;

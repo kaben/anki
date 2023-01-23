@@ -38,7 +38,7 @@ pub async fn online_sync_status_check(
     local: SyncMeta,
     server: &mut HttpSyncClient,
 ) -> Result<ClientSyncState, AnkiError> {
-    let (remote, new_endpoint) = server.meta_with_redirect().await?;
+    let (remote, new_endpoint, server_info) = server.meta_with_redirect().await?;
     debug!(?remote, "meta");
     debug!(?local, "meta");
     if !remote.should_continue {
@@ -53,5 +53,5 @@ pub async fn online_sync_status_check(
         debug!(delta, "clock off");
         return Err(AnkiError::sync_error("", SyncErrorKind::ClockIncorrect));
     }
-    Ok(local.compared_to_remote(remote, new_endpoint))
+    Ok(local.compared_to_remote(remote, new_endpoint, server_info))
 }

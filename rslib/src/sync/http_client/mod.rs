@@ -88,7 +88,7 @@ impl HttpSyncClient {
         io_monitor
             .zstd_request_with_timeout(request, data, Duration::from_secs(30))
             .await
-            .map(SyncResponse::from_vec)
+            .map(|data| SyncResponse::from_vec_with_server_version(data.buf, data.server_version))
     }
 
     #[cfg(test)]

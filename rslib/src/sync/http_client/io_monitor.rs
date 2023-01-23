@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use axum::http::header::SERVER;
 use bytes::Bytes;
 use futures::Stream;
 use futures::StreamExt;
@@ -31,7 +32,10 @@ use crate::sync::error::HttpSnafu;
 use crate::sync::error::OrHttpErr;
 use crate::sync::request::header_and_stream::decode_zstd_body_stream;
 use crate::sync::request::header_and_stream::encode_zstd_body_stream;
+use crate::sync::response::DataWithServerInfo;
 use crate::sync::response::ORIGINAL_SIZE;
+use crate::version::parse_version_info;
+//use crate::version::VersionInfo;
 
 /// Serves two purposes:
 /// - allows us to monitor data sending/receiving and abort if
@@ -107,7 +111,8 @@ impl IoMonitor {
         request: RequestBuilder,
         request_body: Vec<u8>,
         stall_duration: Duration,
-    ) -> HttpResult<Vec<u8>> {
+        //) -> HttpResult<Vec<u8>> {
+    ) -> HttpResult<DataWithServerInfo> {
         let request_total = request_body.len() as u32;
         let request_body_stream = encode_zstd_body_stream(self.wrap_stream(
             true,
@@ -122,8 +127,12 @@ impl IoMonitor {
                 .await?
                 .error_for_status()?;
             map_redirect_to_error(&resp)?;
-            let response_total = resp
-                .headers()
+            let headers = resp.headers();
+            let server_version = match headers.contains_key(SERVER) {
+                true => parse_version_info(headers.get(SERVER).unwrap().to_str().unwrap()).unwrap(),
+                false => None,
+            };
+            let response_total = headers
                 .get(&ORIGINAL_SIZE)
                 .and_then(|v| v.to_str().ok())
                 .and_then(|v| v.parse::<u32>().ok())
@@ -142,7 +151,10 @@ impl IoMonitor {
                 .read_to_end(&mut buf)
                 .await
                 .or_http_err(StatusCode::SEE_OTHER, "reading stream")?;
-            Ok::<_, HttpError>(buf)
+            Ok::<_, HttpError>(DataWithServerInfo {
+                buf,
+                server_version,
+            })
         };
         select! {
             // happy path
