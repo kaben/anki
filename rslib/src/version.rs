@@ -23,7 +23,7 @@ pub struct VersionInfo {
     pub platform: String,
 }
 
-pub fn client_version_re() -> &'static Regex {
+pub fn version_re() -> &'static Regex {
     lazy_static! {
         static ref RE: Regex = Regex::new(
             r"(?x)
@@ -58,7 +58,7 @@ pub fn client_version_re() -> &'static Regex {
     &RE
 }
 
-pub fn short_client_version_re() -> &'static Regex {
+pub fn short_version_re() -> &'static Regex {
     lazy_static! {
         static ref RE: Regex = Regex::new(
             r"(?x)
@@ -91,9 +91,7 @@ pub fn short_client_version_re() -> &'static Regex {
 }
 
 pub fn parse_version_info(version: &str) -> Result<Option<VersionInfo>> {
-    println!("parse_version_info(): version: {:?}", version);
-    //let caps = client_version_re().captures(version).unwrap();
-    match client_version_re().captures(version) {
+    match version_re().captures(version) {
         Some(caps) => {
             let name: String = match caps.name("name") {
                 Some(text) => text.as_str().to_string(),
@@ -148,9 +146,7 @@ pub fn parse_version_info(version: &str) -> Result<Option<VersionInfo>> {
 }
 
 pub fn parse_short_version_info(version: &str) -> Result<Option<VersionInfo>> {
-    println!("parse_short_version_info(): version: {:?}", version);
-    //let caps = short_client_version_re().captures(version).unwrap();
-    match short_client_version_re().captures(version) {
+    match short_version_re().captures(version) {
         Some(caps) => {
             let name: String = "".to_string();
             let major: u32 = match caps.name("major") {
@@ -237,10 +233,11 @@ pub(crate) fn sync_client_version_short() -> &'static str {
 pub(crate) fn sync_server_version() -> &'static str {
     lazy_static! {
         static ref VER: String = format!(
-            "Anki/{version}+{variant} ({platform})",
-            variant = ANKIMATH_VARIANT,
+            "anki-server,{version} ({buildhash}.builtin-{variant}),{platform}",
             version = version(),
-            platform = env::consts::OS
+            buildhash = buildhash(),
+            variant = ANKIMATH_VARIANT,
+            platform = env::var("PLATFORM").unwrap_or_else(|_| env::consts::OS.to_string())
         );
     }
     &VER
