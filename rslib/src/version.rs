@@ -233,3 +233,15 @@ pub(crate) fn sync_client_version_short() -> &'static str {
     }
     &VER
 }
+
+pub(crate) fn sync_server_version() -> &'static str {
+    lazy_static! {
+        static ref VER: String = format!(
+            "Anki/{version}+{variant} ({platform})",
+            variant = ANKIMATH_VARIANT,
+            version = version(),
+            platform = env::consts::OS
+        );
+    }
+    &VER
+}

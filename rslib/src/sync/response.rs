@@ -4,7 +4,10 @@
 use std::marker::PhantomData;
 
 use axum::body::StreamBody;
+use axum::headers::HeaderMap;
 use axum::headers::HeaderName;
+use axum::headers::HeaderValue;
+use axum::http::header::SERVER;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use serde::de::DeserializeOwned;
@@ -16,6 +19,7 @@ use crate::sync::error::HttpResult;
 use crate::sync::error::OrHttpErr;
 use crate::sync::request::header_and_stream::encode_zstd_body;
 use crate::sync::version::SyncVersion;
+use crate::version::sync_server_version;
 
 pub static ORIGINAL_SIZE: HeaderName = HeaderName::from_static("anki-original-size");
 
@@ -38,9 +42,17 @@ impl<T> SyncResponse<T> {
 
     pub fn make_response(self, sync_version: SyncVersion) -> Response {
         if sync_version.is_zstd() {
-            let header = (&ORIGINAL_SIZE, self.data.len().to_string());
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                &ORIGINAL_SIZE,
+                self.data.len().to_string().parse::<HeaderValue>().unwrap(),
+            );
+            headers.insert(
+                SERVER,
+                HeaderValue::from_str(sync_server_version()).unwrap(),
+            );
             let body = StreamBody::new(encode_zstd_body(self.data));
-            ([header], body).into_response()
+            (headers, body).into_response()
         } else {
             self.data.into_response()
         }
