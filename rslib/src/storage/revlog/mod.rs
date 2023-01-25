@@ -91,7 +91,8 @@ impl SqliteStorage {
                         match e {
                             rusqlite::Error::QueryReturnedNoRows => {
                                 //FIXME@kaben: remove debug output.
-                                //println!("***** SqliteStorage.add_revlog_entry(): found available_id:{available_id:?}");
+                                //println!("***** SqliteStorage.add_revlog_entry(): found
+                                // available_id:{available_id:?}");
                                 break;
                             }
                             _ => {
@@ -146,8 +147,8 @@ impl SqliteStorage {
             .collect()
     }
 
-    // The following two functions were added to support a version of Anki for detailed review
-    // feedback.
+    // The following two functions were added to support a version of Anki for
+    // detailed review feedback.
     pub(crate) fn get_revlog_entries_for_note(&self, nid: NoteId) -> Result<Vec<RevlogEntry>> {
         self.db
             .prepare_cached(concat!(

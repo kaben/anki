@@ -3,15 +3,15 @@
 
 pub mod undo;
 
-use crate::{
-    card::CardId,
-    pb,
-    prelude::*,
-    revlog::{RevlogEntry, RevlogId, RevlogReviewKind},
-};
+use crate::card::CardId;
+use crate::pb;
+use crate::prelude::*;
+use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogId;
+use crate::revlog::RevlogReviewKind;
 
-/// Conversion from `RevlogEntry` to `pb::RevlogEntry`, the latter being the Protocol Buffers
-/// datatype defined in `proto/anki/revlog.proto`.
+/// Conversion from `RevlogEntry` to `pb::RevlogEntry`, the latter being the
+/// Protocol Buffers datatype defined in `proto/anki/revlog.proto`.
 impl From<RevlogEntry> for pb::revlog::RevlogEntry {
     fn from(e: RevlogEntry) -> Self {
         pb::revlog::RevlogEntry {

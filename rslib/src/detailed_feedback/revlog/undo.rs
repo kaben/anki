@@ -1,11 +1,11 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use crate::{
-    ops::StateChanges,
-    prelude::*,
-    revlog::{undo::UndoableRevlogChange, RevlogEntry, RevlogTags},
-};
+use crate::ops::StateChanges;
+use crate::prelude::*;
+use crate::revlog::undo::UndoableRevlogChange;
+use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogTags;
 
 fn revlog_entry_differs_from_db(
     existing_revlog_entry: &mut RevlogEntry,
@@ -15,9 +15,10 @@ fn revlog_entry_differs_from_db(
 }
 
 impl Collection {
-    /// The entry point for the backend `update_revlog_entries()` command, whih for each of the
-    /// given review objects, updates the corresponding row of the revlog table. Note that one of
-    /// the arguments indicates whether to update the undo stack.
+    /// The entry point for the backend `update_revlog_entries()` command, whih
+    /// for each of the given review objects, updates the corresponding row
+    /// of the revlog table. Note that one of the arguments indicates
+    /// whether to update the undo stack.
     ///
     /// ## Arguments:
     ///
@@ -66,9 +67,9 @@ impl Collection {
         Ok(())
     }
 
-    /// Called by `fn Collection::update_revlog_entries_maybe_undoable()` above, once for each
-    /// review object. Undo-ably updates the database if there are any changes, after first
-    /// cleaning up the entry's tags.
+    /// Called by `fn Collection::update_revlog_entries_maybe_undoable()` above,
+    /// once for each review object. Undo-ably updates the database if there
+    /// are any changes, after first cleaning up the entry's tags.
     pub(crate) fn update_revlog_entry_inner(&mut self, entry: &mut RevlogEntry) -> Result<()> {
         let mut existing_entry = self
             .storage
@@ -86,11 +87,11 @@ impl Collection {
         self.update_revlog_entry_undoable(entry, existing_entry)
     }
 
-    /// Called by `fn Collection::update_revlog_entry_inner()` above. Saves in the undo queue, and
-    /// commits to DB.  No validation is done.
+    /// Called by `fn Collection::update_revlog_entry_inner()` above. Saves in
+    /// the undo queue, and commits to DB.  No validation is done.
     ///
-    /// This function is also used by `fn Collection::undo_revlog_change()` defined in
-    /// `rslib/src/revlog/undo.rs`.
+    /// This function is also used by `fn Collection::undo_revlog_change()`
+    /// defined in `rslib/src/revlog/undo.rs`.
     ///
     /// This function calls `fn SqliteStorage::update_revlog_entry()` defined in
     /// `rslib/src/detailed_feedback/storage/revlog/mod.rs`.
@@ -132,9 +133,9 @@ impl Collection {
         revlog_id: RevlogId,
         _usn: Usn,
     ) -> Result<()> {
-        // FIXME@kaben: Add revlog graves entry or some other means of tracking deleted entries,
-        // because the official Anki servers won't track this info. Must first add revlog graves
-        // table, etc.
+        // FIXME@kaben: Add revlog graves entry or some other means of tracking deleted
+        // entries, because the official Anki servers won't track this info.
+        // Must first add revlog graves table, etc.
         let revlog_entry = self
             .storage
             .get_revlog_entry(revlog_id)?
@@ -145,13 +146,15 @@ impl Collection {
     }
 }
 
-/* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or
- * storage systems. There's a lot of copy-paste here, which I'm okay with for now.
+/* Anki isn't really set up for unit tests. Tests below aren't isolated from
+ * the collection or storage systems. There's a lot of copy-paste here, which
+ * I'm okay with for now.
  */
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{collection::open_test_collection, types::Usn};
+    use crate::collection::open_test_collection;
+    use crate::types::Usn;
 
     #[test]
     fn revlog_entry_differs_from_db_with_unchanged_entry() -> Result<()> {

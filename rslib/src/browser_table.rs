@@ -298,7 +298,8 @@ impl Collection {
                 .or_invalid("Active browser columns not set.")?,
         );
         //FIXME@kaben: remove.
-        //RowContext::new(self, id, notes_mode, card_render_required(&columns))?.browser_row(&columns)
+        //RowContext::new(self, id, notes_mode,
+        // card_render_required(&columns))?.browser_row(&columns)
         RowContext::new(self, id, mode, card_render_required(&columns))?.browser_row(&columns)
     }
 
@@ -590,8 +591,9 @@ impl RowContext {
         }
     }
 
-    /// For cards or notes, returns the average interval of the review and relearn cards if there
-    /// are any. Otherwise returns the review interval.
+    /// For cards or notes, returns the average interval of the review and
+    /// relearn cards if there are any. Otherwise returns the review
+    /// interval.
     fn interval_str(&self) -> String {
         if self.browser_mode == BrowserMode::Cards {
             match self.cards[0].ctype {

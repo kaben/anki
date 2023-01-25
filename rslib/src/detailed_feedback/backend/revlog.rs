@@ -1,17 +1,15 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use crate::{
-    backend::Backend,
-    pb::revlog::revlog_service::Service as RevlogService,
-    pb::{self as pb},
-    prelude::*,
-    revlog::RevlogEntry,
-};
+use crate::backend::Backend;
+use crate::pb::revlog::revlog_service::Service as RevlogService;
+use crate::pb::{self as pb,};
+use crate::prelude::*;
+use crate::revlog::RevlogEntry;
 
 impl RevlogService for Backend {
-    /// Backend function. Returns a "Review" object (corresponding to a row in the revlog table)
-    /// for the given review ID.
+    /// Backend function. Returns a "Review" object (corresponding to a row in
+    /// the revlog table) for the given review ID.
     fn get_revlog_entry(&self, input: pb::revlog::RevlogId) -> Result<pb::revlog::RevlogEntry> {
         let rid = input.rid.into();
         self.with_col(|col| {
@@ -22,21 +20,21 @@ impl RevlogService for Backend {
         })
     }
 
-    /// Backend function. For each of the given review objects, updates the corresponding row of
-    /// the revlog table. Note that one of the arguments indicates whether to update the undo
-    /// stack.
+    /// Backend function. For each of the given review objects, updates the
+    /// corresponding row of the revlog table. Note that one of the
+    /// arguments indicates whether to update the undo stack.
     ///
     /// ## `input` Arguments:
     ///
     /// - `input.revlog_entries`: the list of review objects.
-    /// - `input.skip_uhdo_entry`: whether to skip updating the review stack; if `false` then it
-    ///    should be possible to undo this update command.
+    /// - `input.skip_uhdo_entry`: whether to skip updating the review stack; if
+    ///   `false` then it should be possible to undo this update command.
     ///
     /// ## Returns:
     ///
-    /// An `OpChanges` instance indicating that the operation `UpdateRevlogEntry` was
-    /// performed, and that the operation changed a `revlog_entry`. (See `rslib/source/ops.rs` for
-    /// more details.)
+    /// An `OpChanges` instance indicating that the operation
+    /// `UpdateRevlogEntry` was performed, and that the operation changed a
+    /// `revlog_entry`. (See `rslib/source/ops.rs` for more details.)
     fn update_revlog_entries(
         &self,
         input: pb::revlog::UpdateRevlogEntriesRequest,

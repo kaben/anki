@@ -1,11 +1,10 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use crate::{
-    error::{DbErrorKind::MissingEntity, Result},
-    prelude::AnkiError,
-    storage::SqliteStorage,
-};
+use crate::error::DbErrorKind::MissingEntity;
+use crate::error::Result;
+use crate::prelude::AnkiError;
+use crate::storage::SqliteStorage;
 
 impl SqliteStorage {
     /// Checks whether database has specified table.
@@ -24,8 +23,8 @@ impl SqliteStorage {
     }
 
     ///// Checks whether database table has specified column.
-    //pub(crate) fn table_has_column(&self, table_name: &str, column_name: &str) -> Result<bool> {
-    //    let mut stmt = self
+    //pub(crate) fn table_has_column(&self, table_name: &str, column_name: &str) ->
+    // Result<bool> {    let mut stmt = self
     //        .db
     //        .prepare(&format!("pragma table_info({})", table_name))?;
     //    let mut col_iter = stmt.query_map([], |row| {
@@ -44,9 +43,9 @@ impl SqliteStorage {
     //    match extended_version {
     //        Ok(ev) => Ok(ev),
     //        Err(e) => {
-    //            let msg: String = format!("extended version info not found in database: {:?}", e);
-    //            Err(AnkiError::db_error(msg, MissingEntity))
-    //        }
+    //            let msg: String = format!("extended version info not found in
+    // database: {:?}", e);            Err(AnkiError::db_error(msg,
+    // MissingEntity))        }
     //    }
     //}
 
@@ -67,8 +66,8 @@ impl SqliteStorage {
 
     ///// Adds extended version information field to database.
     /////
-    ///// When run, the extended version info will initially be set to 202212011737, meaning "5:37
-    ///// P.M.  on 1 December, 2022".
+    ///// When run, the extended version info will initially be set to 202212011737,
+    ///// meaning "5:37 P.M.  on 1 December, 2022".
     //pub fn run_schema_extended_version_upgrade(&self) -> Result<()> {
     //    self.db
     //        .execute_batch(include_str!("schema_extended_version_upgrade.sql"))?;
@@ -77,8 +76,8 @@ impl SqliteStorage {
 
     /// Adds AnkiMath version information field to database.
     ///
-    /// When run, the extended version info will initially be set to 202212011737, meaning "5:37
-    /// P.M.  on 1 December, 2022".
+    /// When run, the extended version info will initially be set to
+    /// 202212011737, meaning "5:37 P.M.  on 1 December, 2022".
     pub fn run_schema_ankimath_version_upgrade(&self) -> Result<()> {
         self.db
             .execute_batch(include_str!("schema_ankimath_version_upgrade.sql"))?;
@@ -100,8 +99,8 @@ impl SqliteStorage {
     }
 }
 
-/* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or
- * storage systems.
+/* Anki isn't really set up for unit tests. Tests below aren't isolated from
+ * the collection or storage systems.
  */
 #[cfg(test)]
 mod test {

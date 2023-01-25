@@ -1,13 +1,14 @@
 // Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-use crate::{
-    prelude::*,
-    revlog::{RevlogEntry, RevlogTags},
-    storage::SqliteStorage,
-    tags::join_tags,
-};
-use rusqlite::{params, Row};
+use rusqlite::params;
+use rusqlite::Row;
+
+use crate::prelude::*;
+use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogTags;
+use crate::storage::SqliteStorage;
+use crate::tags::join_tags;
 
 impl RevlogTags {
     pub(crate) fn set_modified(&mut self, usn: Usn) {
@@ -27,8 +28,9 @@ fn row_to_revlog_tags(row: &Row) -> Result<RevlogTags> {
 
 impl SqliteStorage {
     /// Called by `fn Collection::update_revlog_entry_undoable()` defined in
-    /// `rslib/src/detailed_feedback/revlog/undo.rs`. This function issues SQL commands to update
-    /// the `revlog` table row corresponding to the supplied `entry` object.
+    /// `rslib/src/detailed_feedback/revlog/undo.rs`. This function issues SQL
+    /// commands to update the `revlog` table row corresponding to the
+    /// supplied `entry` object.
     pub(crate) fn update_revlog_entry(&self, entry: &RevlogEntry) -> Result<()> {
         let mut stmt = self.db.prepare_cached(include_str!("update.sql"))?;
         stmt.execute(params![
@@ -102,13 +104,15 @@ impl SqliteStorage {
     }
 }
 
-/* Anki isn't really set up for unit tests. Tests below aren't isolated from the collection or
- * storage systems. There's a lot of copy-paste here, which I'm okay with for now.
+/* Anki isn't really set up for unit tests. Tests below aren't isolated from
+ * the collection or storage systems. There's a lot of copy-paste here, which
+ * I'm okay with for now.
  */
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{collection::open_test_collection, types::Usn};
+    use crate::collection::open_test_collection;
+    use crate::types::Usn;
 
     #[test]
     fn update_revlog_entry() -> Result<()> {

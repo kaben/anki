@@ -49,7 +49,8 @@ impl TagsService for Backend {
         self.with_col(|col| col.tag_tree())
     }
 
-    // FIXME@kaben: changed to update revlog entries, but can't test until drag and drop works.
+    // FIXME@kaben: changed to update revlog entries, but can't test until drag and
+    // drop works.
     fn reparent_tags(
         &self,
         input: pb::tags::ReparentTagsRequest,

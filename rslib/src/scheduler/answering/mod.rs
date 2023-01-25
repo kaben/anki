@@ -827,8 +827,8 @@ mod test {
         Ok(())
     }
 
-    // FIXME@kaben: Fix this bogus test. It exercises the function but doesn't have any meaningful
-    // test assertions.
+    // FIXME@kaben: Fix this bogus test. It exercises the function but doesn't have
+    // any meaningful test assertions.
     #[test]
     fn replay_card_histories() -> Result<()> {
         let mut col = open_test_collection();

@@ -119,7 +119,8 @@ pub struct RevlogEntry {
     /// Positive values are in days, negative values in seconds.
     #[serde(rename = "lastIvl", deserialize_with = "deserialize_int_from_number")]
     pub last_interval: i32,
-    /// Card's ease after answering, stored as 10x the %, eg 2500 represents 250%.
+    /// Card's ease after answering, stored as 10x the %, eg 2500 represents
+    /// 250%.
     #[serde(rename = "factor", deserialize_with = "deserialize_int_from_number")]
     pub ease_factor: u32,
     /// Amount of milliseconds taken to answer the card.
@@ -312,9 +313,10 @@ impl Collection {
     /// If the provided objects are not modified locally, the USN inside
     /// the individual objects is used.
     ///
-    /// This is a modified version of apply_chunk() above, meant for use AnkiMath sync servers. It
-    /// syncs the extended version of RevlogEntry used in AnkiMath, whereas apply_chunk() is used
-    /// to sync with standard Anki sync servers.
+    /// This is a modified version of apply_chunk() above, meant for use
+    /// AnkiMath sync servers. It syncs the extended version of RevlogEntry
+    /// used in AnkiMath, whereas apply_chunk() is used to sync with
+    /// standard Anki sync servers.
     pub(in crate::sync) fn apply_extended_chunk(
         &mut self,
         extended_chunk: ExtendedChunk,
@@ -484,9 +486,10 @@ impl Collection {
 
     /// Fetch a chunk of ids from `ids`, returning the referenced objects.
     ///
-    /// This is a modified version of get_chunk() above, meant for use AnkiMath sync servers. It
-    /// syncs the extended version of RevlogEntry used in AnkiMath, whereas get_chunk() is used to
-    /// sync with standard Anki sync servers.
+    /// This is a modified version of get_chunk() above, meant for use AnkiMath
+    /// sync servers. It syncs the extended version of RevlogEntry used in
+    /// AnkiMath, whereas get_chunk() is used to sync with standard Anki
+    /// sync servers.
     pub(in crate::sync) fn get_extended_chunk(
         &self,
         ids: &mut ChunkableIds,
@@ -708,9 +711,9 @@ pub fn server_chunk(
     col.get_chunk(state.server_chunk_ids.as_mut().unwrap(), None)
 }
 
-// This is a modified version of server_chunk() above, meant for use AnkiMath sync servers. It
-// syncs the extended version of RevlogEntry used in AnkiMath, whereas server_chunk() is used to
-// sync with standard Anki sync servers.
+// This is a modified version of server_chunk() above, meant for use AnkiMath
+// sync servers. It syncs the extended version of RevlogEntry used in AnkiMath,
+// whereas server_chunk() is used to sync with standard Anki sync servers.
 pub fn server_extended_chunk(
     col: &mut Collection,
     state: &mut ServerSyncState,
@@ -741,9 +744,10 @@ pub fn server_apply_chunk(
     col.apply_chunk(req.chunk, state.client_usn)
 }
 
-// This is a modified version of server_apply_chunk() above, meant for use AnkiMath sync servers.
-// It syncs the extended version of RevlogEntry used in AnkiMath, whereas server_apply_chunk() is
-// used to sync with standard Anki sync servers.
+// This is a modified version of server_apply_chunk() above, meant for use
+// AnkiMath sync servers. It syncs the extended version of RevlogEntry used in
+// AnkiMath, whereas server_apply_chunk() is used to sync with standard Anki
+// sync servers.
 pub fn server_apply_extended_chunk(
     req: ApplyExtendedChunkRequest,
     col: &mut Collection,

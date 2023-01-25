@@ -7,7 +7,8 @@ use super::join_tags;
 use super::matcher::TagMatcher;
 use crate::prelude::*;
 
-// FIXME@kaben: changed to update revlog entries, but can't test until drag and drop works.
+// FIXME@kaben: changed to update revlog entries, but can't test until drag and
+// drop works.
 impl Collection {
     /// Reparent the provided tags under a new parent.
     ///
