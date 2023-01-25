@@ -51,6 +51,8 @@
     fields configuration UI, allowing setting description, editing font, RTL,
     and using HTML editor by default.
 
+  - Add preferences UI for changing the sync timeout.
+
 - Troubleshoot:
   - Need to troubleshoot the undo stack wrt replaying card histories.
   - Verify and try to solve issue between JSONSchema >= 4.2 and PyOxidizer.
