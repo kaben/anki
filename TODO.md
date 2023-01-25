@@ -47,6 +47,10 @@
   - Make Math mode optional, so that Anki-Math can look and feel like standard
     Anki.
 
+  - Add preferences UI section for configuring review editor, modeled after
+    fields configuration UI, allowing setting description, editing font, RTL,
+    and using HTML editor by default.
+
 - Troubleshoot:
   - Need to troubleshoot the undo stack wrt replaying card histories.
   - Verify and try to solve issue between JSONSchema >= 4.2 and PyOxidizer.

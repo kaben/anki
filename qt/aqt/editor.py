@@ -611,7 +611,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         ]
         rev_descriptions = ["Review feedback"]
         rev_fonts = [
-            ("Liberation Sans", 20, False),
+            ("Liberation Serif", 24, False),
         ]
         rev_id = None
         rev_tags = []
