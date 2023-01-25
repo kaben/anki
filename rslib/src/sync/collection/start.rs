@@ -15,6 +15,7 @@ use crate::sync::collection::normal::NormalSyncProgress;
 use crate::sync::collection::normal::NormalSyncer;
 use crate::sync::collection::protocol::SyncProtocol;
 use crate::sync::request::IntoSyncRequest;
+use crate::version::VersionInfo;
 
 impl<F> NormalSyncer<'_, F>
 where
@@ -114,6 +115,7 @@ pub fn server_start(
 /// The current sync protocol is stateful, so unfortunately we need to
 /// retain a bunch of information across requests. These are set either
 /// on start, or on subsequent methods.
+#[derive(Debug)]
 pub struct ServerSyncState {
     /// The session key. This is sent on every http request, but is ignored for
     /// methods where there is not active sync state.
@@ -126,16 +128,26 @@ pub struct ServerSyncState {
     pub(in crate::sync) client_is_newer: bool,
     /// Set on the first call to chunk()
     pub(in crate::sync) server_chunk_ids: Option<ChunkableIds>,
+
+    pub client_version: Option<VersionInfo>,
 }
 
 impl ServerSyncState {
     pub fn new(skey: impl Into<String>) -> Self {
+        ServerSyncState::new_with_client_version(skey, None)
+    }
+    pub fn new_with_client_version(
+        skey: impl Into<String>,
+        client_version: Option<VersionInfo>,
+    ) -> Self {
         Self {
             skey: skey.into(),
             server_usn: Default::default(),
             client_usn: Default::default(),
             client_is_newer: false,
             server_chunk_ids: None,
+
+            client_version,
         }
     }
 }

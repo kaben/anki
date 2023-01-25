@@ -29,7 +29,7 @@ macro_rules! sync_method {
     }};
 }
 
-async fn sync_handler<P: SyncProtocol>(
+async fn sync_handler<P: SyncProtocol + std::fmt::Debug>(
     Path(method): Path<SyncMethod>,
     State(server): State<P>,
     request: SyncRequest<Vec<u8>>,
@@ -41,7 +41,9 @@ async fn sync_handler<P: SyncProtocol>(
         SyncMethod::ApplyGraves => sync_method!(server, request, apply_graves),
         SyncMethod::ApplyChanges => sync_method!(server, request, apply_changes),
         SyncMethod::Chunk => sync_method!(server, request, chunk),
+        SyncMethod::ExtendedChunk => sync_method!(server, request, extended_chunk),
         SyncMethod::ApplyChunk => sync_method!(server, request, apply_chunk),
+        SyncMethod::ApplyExtendedChunk => sync_method!(server, request, apply_extended_chunk),
         SyncMethod::SanityCheck2 => sync_method!(server, request, sanity_check),
         SyncMethod::Finish => sync_method!(server, request, finish),
         SyncMethod::Abort => sync_method!(server, request, abort),
@@ -50,7 +52,7 @@ async fn sync_handler<P: SyncProtocol>(
     })
 }
 
-pub fn collection_sync_router<P: SyncProtocol + Clone>() -> Router<P> {
+pub fn collection_sync_router<P: SyncProtocol + Clone + std::fmt::Debug>() -> Router<P> {
     Router::new().route("/:method", post(sync_handler::<P>))
 }
 

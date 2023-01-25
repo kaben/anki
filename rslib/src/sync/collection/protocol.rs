@@ -13,7 +13,9 @@ use crate::prelude::TimestampMillis;
 use crate::sync::collection::changes::ApplyChangesRequest;
 use crate::sync::collection::changes::UnchunkedChanges;
 use crate::sync::collection::chunks::ApplyChunkRequest;
+use crate::sync::collection::chunks::ApplyExtendedChunkRequest;
 use crate::sync::collection::chunks::Chunk;
+use crate::sync::collection::chunks::ExtendedChunk;
 use crate::sync::collection::graves::ApplyGravesRequest;
 use crate::sync::collection::graves::Graves;
 use crate::sync::collection::meta::MetaRequest;
@@ -39,7 +41,9 @@ pub enum SyncMethod {
     ApplyGraves,
     ApplyChanges,
     Chunk,
+    ExtendedChunk,
     ApplyChunk,
+    ApplyExtendedChunk,
     SanityCheck2,
     Finish,
     Abort,
@@ -74,9 +78,17 @@ pub trait SyncProtocol: Send + Sync + 'static {
         req: SyncRequest<ApplyChangesRequest>,
     ) -> HttpResult<SyncResponse<UnchunkedChanges>>;
     async fn chunk(&self, req: SyncRequest<EmptyInput>) -> HttpResult<SyncResponse<Chunk>>;
+    async fn extended_chunk(
+        &self,
+        req: SyncRequest<EmptyInput>,
+    ) -> HttpResult<SyncResponse<ExtendedChunk>>;
     async fn apply_chunk(
         &self,
         req: SyncRequest<ApplyChunkRequest>,
+    ) -> HttpResult<SyncResponse<()>>;
+    async fn apply_extended_chunk(
+        &self,
+        req: SyncRequest<ApplyExtendedChunkRequest>,
     ) -> HttpResult<SyncResponse<()>>;
     async fn sanity_check(
         &self,
@@ -95,7 +107,7 @@ pub trait SyncProtocol: Send + Sync + 'static {
 /// Serde serializes/deserializes empty structs as 'null', so we add an empty
 /// value to cause it to produce a map instead. This only applies to inputs;
 /// empty outputs are returned as ()/null.
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct EmptyInput {
     #[serde(default)]

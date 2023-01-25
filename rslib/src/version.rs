@@ -208,10 +208,9 @@ pub fn buildhash() -> &'static str {
 pub(crate) fn sync_client_version() -> &'static str {
     lazy_static! {
         static ref VER: String = format!(
-            "anki,{version} ({buildhash}.{variant}),{platform}",
+            "anki,{version} ({buildhash}),{platform}",
             version = version(),
             buildhash = buildhash(),
-            variant = ANKIMATH_VARIANT,
             platform = env::var("PLATFORM").unwrap_or_else(|_| env::consts::OS.to_string())
         );
     }
@@ -221,7 +220,7 @@ pub(crate) fn sync_client_version() -> &'static str {
 pub(crate) fn sync_client_version_short() -> &'static str {
     lazy_static! {
         static ref VER: String = format!(
-            "{version},{buildhash}.mxyzptlk,{platform}",
+            "{version},{buildhash},{platform}",
             version = version(),
             buildhash = buildhash(),
             platform = env::consts::OS
@@ -233,7 +232,7 @@ pub(crate) fn sync_client_version_short() -> &'static str {
 pub(crate) fn sync_server_version() -> &'static str {
     lazy_static! {
         static ref VER: String = format!(
-            "anki-server,{version} ({buildhash}.builtin-{variant}),{platform}",
+            "anki-builtin-server,{version} ({buildhash}.{variant}),{platform}",
             version = version(),
             buildhash = buildhash(),
             variant = ANKIMATH_VARIANT,

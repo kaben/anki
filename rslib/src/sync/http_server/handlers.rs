@@ -12,9 +12,13 @@ use crate::sync::collection::changes::server_apply_changes;
 use crate::sync::collection::changes::ApplyChangesRequest;
 use crate::sync::collection::changes::UnchunkedChanges;
 use crate::sync::collection::chunks::server_apply_chunk;
+use crate::sync::collection::chunks::server_apply_extended_chunk;
 use crate::sync::collection::chunks::server_chunk;
+use crate::sync::collection::chunks::server_extended_chunk;
 use crate::sync::collection::chunks::ApplyChunkRequest;
+use crate::sync::collection::chunks::ApplyExtendedChunkRequest;
 use crate::sync::collection::chunks::Chunk;
+use crate::sync::collection::chunks::ExtendedChunk;
 use crate::sync::collection::download::server_download;
 use crate::sync::collection::finish::server_finish;
 use crate::sync::collection::graves::server_apply_graves;
@@ -48,6 +52,7 @@ use crate::sync::media::protocol::JsonResult;
 use crate::sync::media::protocol::MediaSyncProtocol;
 use crate::sync::request::SyncRequest;
 use crate::sync::response::SyncResponse;
+use crate::version::parse_short_version_info;
 
 #[async_trait]
 impl SyncProtocol for Arc<SimpleServer> {
@@ -69,9 +74,10 @@ impl SyncProtocol for Arc<SimpleServer> {
 
     async fn start(&self, req: SyncRequest<StartRequest>) -> HttpResult<SyncResponse<Graves>> {
         self.with_authenticated_user(req, |user, req| {
+            let client_version = parse_short_version_info(&req.client_version).unwrap();
             let skey = req.skey()?;
             let req = req.json()?;
-            user.start_new_sync(skey)?;
+            user.start_new_sync(skey, client_version)?;
             user.with_sync_state(skey, |col, state| server_start(req, col, state))
                 .and_then(SyncResponse::try_from_obj)
         })
@@ -106,10 +112,27 @@ impl SyncProtocol for Arc<SimpleServer> {
 
     async fn chunk(&self, req: SyncRequest<EmptyInput>) -> HttpResult<SyncResponse<Chunk>> {
         self.with_authenticated_user(req, |user, req| {
+            let version_info = parse_short_version_info(&req.client_version).unwrap();
             let skey = req.skey()?;
             let _ = req.json()?;
-            user.with_sync_state(skey, server_chunk)
+            user.with_sync_state(skey, |col, state| server_chunk(col, state, version_info))
                 .and_then(SyncResponse::try_from_obj)
+        })
+        .await
+    }
+
+    async fn extended_chunk(
+        &self,
+        req: SyncRequest<EmptyInput>,
+    ) -> HttpResult<SyncResponse<ExtendedChunk>> {
+        self.with_authenticated_user(req, |user, req| {
+            let version_info = parse_short_version_info(&req.client_version).unwrap();
+            let skey = req.skey()?;
+            let _ = req.json()?;
+            user.with_sync_state(skey, |col, state| {
+                server_extended_chunk(col, state, version_info)
+            })
+            .and_then(SyncResponse::try_from_obj)
         })
         .await
     }
@@ -119,10 +142,29 @@ impl SyncProtocol for Arc<SimpleServer> {
         req: SyncRequest<ApplyChunkRequest>,
     ) -> HttpResult<SyncResponse<()>> {
         self.with_authenticated_user(req, |user, req| {
+            let version_info = parse_short_version_info(&req.client_version).unwrap();
             let skey = req.skey()?;
             let req = req.json()?;
-            user.with_sync_state(skey, |col, state| server_apply_chunk(req, col, state))
-                .and_then(SyncResponse::try_from_obj)
+            user.with_sync_state(skey, |col, state| {
+                server_apply_chunk(req, col, state, version_info)
+            })
+            .and_then(SyncResponse::try_from_obj)
+        })
+        .await
+    }
+
+    async fn apply_extended_chunk(
+        &self,
+        req: SyncRequest<ApplyExtendedChunkRequest>,
+    ) -> HttpResult<SyncResponse<()>> {
+        self.with_authenticated_user(req, |user, req| {
+            let version_info = parse_short_version_info(&req.client_version).unwrap();
+            let skey = req.skey()?;
+            let req = req.json()?;
+            user.with_sync_state(skey, |col, state| {
+                server_apply_extended_chunk(req, col, state, version_info)
+            })
+            .and_then(SyncResponse::try_from_obj)
         })
         .await
     }
