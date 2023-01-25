@@ -14,11 +14,11 @@ use ninja_gen::Build;
 use ninja_gen::Result;
 
 use crate::platform::overriden_rust_target_triple;
-use crate::proto::download_protoc;
+use crate::proto::setup_protoc;
 
 pub fn build_rust(build: &mut Build) -> Result<()> {
     prepare_translations(build)?;
-    download_protoc(build)?;
+    setup_protoc(build)?;
     build_rsbridge(build)
 }
 
@@ -79,7 +79,7 @@ fn build_rsbridge(build: &mut Build) -> Result<()> {
         CargoBuild {
             inputs: inputs![
                 glob!["{pylib/rsbridge/**,rslib/**,proto/**}"],
-                ":extract:protoc:bin",
+                "$protoc_binary",
                 // declare a dependency on i18n so it gets built first, allowing
                 // things depending on strings.json to build faster, and ensuring
                 // changes to the ftl files trigger a rebuild
@@ -113,6 +113,7 @@ pub fn check_rust(build: &mut Build) -> Result<()> {
         CargoFormat {
             inputs: inputs.clone(),
             check_only: true,
+            working_dir: Some("cargo/format"),
         },
     )?;
     build.add(
@@ -120,6 +121,7 @@ pub fn check_rust(build: &mut Build) -> Result<()> {
         CargoFormat {
             inputs: inputs.clone(),
             check_only: false,
+            working_dir: Some("cargo/format"),
         },
     )?;
 
