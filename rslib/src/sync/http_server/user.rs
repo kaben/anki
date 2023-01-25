@@ -14,7 +14,6 @@ use crate::sync::error::OrHttpErr;
 use crate::sync::http_server::media_manager::ServerMediaManager;
 use crate::version::VersionInfo;
 
-#[derive(Debug)]
 pub(in crate::sync) struct User {
     pub name: String,
     pub col: Option<Collection>,

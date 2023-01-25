@@ -12,7 +12,6 @@ use crate::card::CardQueue;
 use crate::card::CardType;
 use crate::notes::Note;
 use crate::prelude::*;
-// FIXME@kaben: next three lines: hack to sync with official anki servers.
 use crate::revlog::RevlogEntry as ExtendedRevlogEntry;
 use crate::revlog::RevlogReviewKind;
 use crate::serde::default_on_invalid;
@@ -105,7 +104,6 @@ pub struct CardEntry {
     pub data: String,
 }
 
-// FIXME@kaben: hack to sync with official anki servers.
 #[derive(Serialize_tuple, Deserialize, Debug, Default, PartialEq, Eq)]
 pub struct RevlogEntry {
     pub id: RevlogId,
@@ -141,6 +139,7 @@ where
     ) -> Result<()> {
         let mut found_ankimath_server: bool = false;
         if state.server_version.is_some() {
+            // FIXME@kaben: remove debugging output below.
             println!("***** (chunks) NormalSyncer.process_chunks_from_server(): found server variant info.");
             if state.server_version.as_ref().unwrap().variant == ANKIMATH_VARIANT {
                 println!("***** (chunks) NormalSyncer.process_chunks_from_server(): found AnkiMath server variant.");
@@ -214,6 +213,7 @@ where
     ) -> Result<()> {
         let mut found_ankimath_server: bool = false;
         if state.server_version.is_some() {
+            // FIXME@kaben: remove debugging output below.
             println!(
                 "***** (chunks) NormalSyncer.send_chunks_to_server(): found server variant info."
             );
@@ -301,17 +301,26 @@ impl Collection {
     /// If the provided objects are not modified locally, the USN inside
     /// the individual objects is used.
     pub(in crate::sync) fn apply_chunk(&mut self, chunk: Chunk, pending_usn: Usn) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
         println!("***** (chunks) Collection.apply_chunk()");
         self.merge_revlog(chunk.revlog)?;
         self.merge_cards(chunk.cards, pending_usn)?;
         self.merge_notes(chunk.notes, pending_usn)
     }
 
+    /// pending_usn is used to decide whether the local objects are newer.
+    /// If the provided objects are not modified locally, the USN inside
+    /// the individual objects is used.
+    ///
+    /// This is a modified version of apply_chunk() above, meant for use AnkiMath sync servers. It
+    /// syncs the extended version of RevlogEntry used in AnkiMath, whereas apply_chunk() is used
+    /// to sync with standard Anki sync servers.
     pub(in crate::sync) fn apply_extended_chunk(
         &mut self,
         extended_chunk: ExtendedChunk,
         pending_usn: Usn,
     ) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
         println!("***** (chunks) Collection.apply_extended_chunk()");
         self.merge_extended_revlog(extended_chunk.extended_revlog)?;
         self.merge_cards(extended_chunk.cards, pending_usn)?;
@@ -319,20 +328,18 @@ impl Collection {
     }
 
     fn merge_revlog(&self, entries: Vec<RevlogEntry>) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
         println!("XXXXX (chunks) Collection.merge_revlog()");
         for entry in entries {
-            // FIXME@kaben: hack to sync with official anki servers.
-            //self.storage.add_revlog_entry(&entry, false)?;
             self.storage.add_revlog_entry(&entry.into(), false)?;
         }
         Ok(())
     }
 
     fn merge_extended_revlog(&self, entries: Vec<ExtendedRevlogEntry>) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
         println!("XXXXX (chunks) Collection.merge_extended_revlog()");
         for entry in entries {
-            // FIXME@kaben: hack to sync with official anki servers.
-            //self.storage.add_revlog_entry(&entry, false)?;
             self.storage.add_revlog_entry(&entry, false)?;
         }
         Ok(())
@@ -399,6 +406,7 @@ impl Collection {
         ids: &mut ChunkableIds,
         server_usn_if_client: Option<Usn>,
     ) -> Result<Chunk> {
+        // FIXME@kaben: remove debugging output below.
         println!("XXXXX (chunks) Collection.get_chunk()");
         // get a bunch of IDs
         let mut limit = CHUNK_SIZE as i32;
@@ -446,7 +454,6 @@ impl Collection {
                 self.storage.get_revlog_entry(id).map(|e| {
                     let mut e = e.unwrap();
                     e.usn = server_usn_if_client.unwrap_or(e.usn);
-                    // FIXME@kaben: hack to sync with official anki servers.
                     e.into()
                 })
             })
@@ -476,11 +483,16 @@ impl Collection {
     }
 
     /// Fetch a chunk of ids from `ids`, returning the referenced objects.
+    ///
+    /// This is a modified version of get_chunk() above, meant for use AnkiMath sync servers. It
+    /// syncs the extended version of RevlogEntry used in AnkiMath, whereas get_chunk() is used to
+    /// sync with standard Anki sync servers.
     pub(in crate::sync) fn get_extended_chunk(
         &self,
         ids: &mut ChunkableIds,
         server_usn_if_client: Option<Usn>,
     ) -> Result<ExtendedChunk> {
+        // FIXME@kaben: remove debugging output below.
         println!("XXXXX (chunks) Collection.get_extended_chunk()");
         // get a bunch of IDs
         let mut limit = CHUNK_SIZE as i32;
@@ -528,7 +540,6 @@ impl Collection {
                 self.storage.get_revlog_entry(id).map(|e| {
                     let mut e = e.unwrap();
                     e.usn = server_usn_if_client.unwrap_or(e.usn);
-                    // FIXME@kaben: hack to sync with official anki servers.
                     e
                 })
             })
@@ -558,7 +569,6 @@ impl Collection {
     }
 }
 
-// FIXME@kaben: hack to sync with official anki servers.
 impl From<ExtendedRevlogEntry> for RevlogEntry {
     fn from(e: ExtendedRevlogEntry) -> Self {
         RevlogEntry {
@@ -575,7 +585,6 @@ impl From<ExtendedRevlogEntry> for RevlogEntry {
     }
 }
 
-// FIXME@kaben: hack to sync with official anki servers.
 impl From<RevlogEntry> for ExtendedRevlogEntry {
     fn from(e: RevlogEntry) -> Self {
         ExtendedRevlogEntry {
@@ -688,6 +697,7 @@ pub fn server_chunk(
     state: &mut ServerSyncState,
     client_version_info: Option<VersionInfo>,
 ) -> Result<Chunk> {
+    // FIXME@kaben: remove debugging output below.
     println!(
         "***** (chunks) server_chunk(): client_version_info: {:?}",
         client_version_info
@@ -698,11 +708,15 @@ pub fn server_chunk(
     col.get_chunk(state.server_chunk_ids.as_mut().unwrap(), None)
 }
 
+// This is a modified version of server_chunk() above, meant for use AnkiMath sync servers. It
+// syncs the extended version of RevlogEntry used in AnkiMath, whereas server_chunk() is used to
+// sync with standard Anki sync servers.
 pub fn server_extended_chunk(
     col: &mut Collection,
     state: &mut ServerSyncState,
     client_version_info: Option<VersionInfo>,
 ) -> Result<ExtendedChunk> {
+    // FIXME@kaben: remove debugging output below.
     println!(
         "***** (chunks) server_extended_chunk(): client_version_info: {:?}",
         client_version_info
@@ -719,6 +733,7 @@ pub fn server_apply_chunk(
     state: &mut ServerSyncState,
     client_version_info: Option<VersionInfo>,
 ) -> Result<()> {
+    // FIXME@kaben: remove debugging output below.
     println!(
         "***** (chunks) server_apply_chunk(): client_version_info: {:?}",
         client_version_info
@@ -726,12 +741,16 @@ pub fn server_apply_chunk(
     col.apply_chunk(req.chunk, state.client_usn)
 }
 
+// This is a modified version of server_apply_chunk() above, meant for use AnkiMath sync servers.
+// It syncs the extended version of RevlogEntry used in AnkiMath, whereas server_apply_chunk() is
+// used to sync with standard Anki sync servers.
 pub fn server_apply_extended_chunk(
     req: ApplyExtendedChunkRequest,
     col: &mut Collection,
     state: &mut ServerSyncState,
     client_version_info: Option<VersionInfo>,
 ) -> Result<()> {
+    // FIXME@kaben: remove debugging output below.
     println!(
         "***** (chunks) server_apply_extended_chunk(): client_version_info: {:?}",
         client_version_info

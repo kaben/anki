@@ -29,7 +29,7 @@ macro_rules! sync_method {
     }};
 }
 
-async fn sync_handler<P: SyncProtocol + std::fmt::Debug>(
+async fn sync_handler<P: SyncProtocol>(
     Path(method): Path<SyncMethod>,
     State(server): State<P>,
     request: SyncRequest<Vec<u8>>,
@@ -52,7 +52,7 @@ async fn sync_handler<P: SyncProtocol + std::fmt::Debug>(
     })
 }
 
-pub fn collection_sync_router<P: SyncProtocol + Clone + std::fmt::Debug>() -> Router<P> {
+pub fn collection_sync_router<P: SyncProtocol + Clone>() -> Router<P> {
     Router::new().route("/:method", post(sync_handler::<P>))
 }
 
