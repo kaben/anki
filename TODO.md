@@ -1,28 +1,6 @@
 # To-Do list for Anki-Math
 
 - Features:
-  - Local sync server:
-
-    Need a local sync server handling `revlog` entry changes for the new
-    `feedback`, `tags`, and `mod` columns. Anki-Math currently can't backup
-    this information since it syncs `revlog` entry changes to the official Anki
-    servers by omitting these new columns.
-
-    Make sure that Anki-Math to can optionally sync to either kind of server.
-
-  - Replaying review history:
-
-    Need an option to select a card or cards in the browser, and replay the
-    history of each selected card.
-
-    By which I mean something like: make a temporary db with collection with
-    decks corresponding to the selected cards; copy the collection and deck
-    configurations/state over to the temporary db; for each selected card, make
-    a corresponding temporary card in new state, then iterate over the reviews
-    for the card, replaying each review (with same ID/timestamp, button, and
-    time taken) for the remporary card; copy the final state of temporary card
-    back to the original card.
-
   - Editing review history:
 
     Need to be able to manually add, change, and delete reviews.
@@ -70,9 +48,10 @@
     Anki.
 
 - Troubleshoot:
-  - Figure out the cause of trouble including Jupyter in the Anki Python
-    dependencies.
   - Need to troubleshoot the undo stack wrt replaying card histories.
+  - Verify and try to solve issue between JSONSchema >= 4.2 and PyOxidizer.
+    This is referenced in `python/requirements.bundle.in`, where a workaround
+    was preventing including Jupyter as a dependency.
 
 - Refactoring:
   - `Table.switch_to_note/card/review_state(...)`: need to simplify and dry out.
@@ -80,8 +59,8 @@
     locations.
 
 - Need to test:
-  - Importing
-  - Exporting
+  - Importing (verified but not formally tested.)
+  - Exporting (verified but not formally tested.)
   - After recent db refactor, anything having to do with SQL.
   - Verify whether standard Anki can use and syncronize the refactored AnkiMath
     db schema.
@@ -91,3 +70,31 @@
 
 - Documentation:
   - Record info about the architecture of the AnkiMath db schema.
+
+- Done:
+  - Done: Local sync server:
+
+    Need a local sync server handling `revlog` entry changes for the new
+    `feedback`, `tags`, and `mod` columns. Anki-Math currently can't backup
+    this information since it syncs `revlog` entry changes to the official Anki
+    servers by omitting these new columns.
+
+    Make sure that Anki-Math to can optionally sync to either kind of server.
+
+  - Done: Replaying review history:
+
+    Need an option to select a card or cards in the browser, and replay the
+    history of each selected card.
+
+    By which I mean something like: make a temporary db with collection with
+    decks corresponding to the selected cards; copy the collection and deck
+    configurations/state over to the temporary db; for each selected card, make
+    a corresponding temporary card in new state, then iterate over the reviews
+    for the card, replaying each review (with same ID/timestamp, button, and
+    time taken) for the remporary card; copy the final state of temporary card
+    back to the original card.
+
+  - Solved: The cause of trouble including Jupyter in the Anki
+    Python dependencies was the line `jsonschema<4.2` in
+    `python/requirements.bundle.in`. It's there because apparently later
+    versions cause problems with PyOxidizer.
