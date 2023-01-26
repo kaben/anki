@@ -128,7 +128,18 @@ def start_ipython_kernel(stdout, stderr):
     else:
         # ipy = IPKernelApp.instance(local_ns={})
         ipy = IPKernelApp.instance()
-        ipy.initialize([])
+        # Tell Jupyter to name kernel files "kernel-anki.json". This file is
+        # typically stored at
+        # "~/.local/share/jupyter/runtime/kernel-anki.json".
+        #
+        # The filename usually has the process ID embedded in it, e.g.
+        # "kernel-1157303.json", which prevents two processes from using the
+        # same file. This shouldn't be a problem here because Anki tries to
+        # prevent multiple instances form running at the same time.
+        ipy.connection_file = "kernel-anki.json"
+        # For now, tell Jupyter to not use stdout. This prevents Anki output
+        # from being echoed to Jupyter notebooks.
+        ipy.initialize(["--no-stdout"])
 
     # Call the API embed function, which will use the monkey-patched method above.
     embed_kernel(local_ns={})
