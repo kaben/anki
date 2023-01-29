@@ -85,7 +85,7 @@ from aqt import (  # isort:skip
     about,
     mediasync,
     preferences,
-    review_stats,
+    # review_stats,
     stats,
 )
 

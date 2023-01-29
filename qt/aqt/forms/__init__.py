@@ -35,7 +35,7 @@ from . import (
     profiles,
     progress,
     reposition,
-    review_stats,
+    # review_stats,
     setgroup,
     setlang,
     stats,
