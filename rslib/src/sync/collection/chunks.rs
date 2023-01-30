@@ -324,7 +324,7 @@ impl Collection {
     ) -> Result<()> {
         // FIXME@kaben: remove debugging output below.
         println!("***** (chunks) Collection.apply_extended_chunk()");
-        self.merge_extended_revlog(extended_chunk.extended_revlog)?;
+        self.merge_extended_revlog(extended_chunk.extended_revlog, pending_usn)?;
         self.merge_cards(extended_chunk.cards, pending_usn)?;
         self.merge_notes(extended_chunk.notes, pending_usn)
     }
@@ -338,12 +338,34 @@ impl Collection {
         Ok(())
     }
 
-    fn merge_extended_revlog(&self, entries: Vec<ExtendedRevlogEntry>) -> Result<()> {
+    fn merge_extended_revlog(
+        &self,
+        entries: Vec<ExtendedRevlogEntry>,
+        pending_usn: Usn,
+    ) -> Result<()> {
         // FIXME@kaben: remove debugging output below.
         println!("XXXXX (chunks) Collection.merge_extended_revlog()");
         for entry in entries {
-            self.storage.add_revlog_entry(&entry, false)?;
+            println!("XXXXX (chunks) Collection.merge_extended_revlog(): entry: {entry:?}");
+            self.add_or_update_extended_revlog_if_newer(entry, pending_usn)?;
         }
+        Ok(())
+    }
+
+    fn add_or_update_extended_revlog_if_newer(
+        &self,
+        entry: ExtendedRevlogEntry,
+        pending_usn: Usn,
+    ) -> Result<()> {
+        if let Some(existing_review) = self.storage.get_revlog_entry(entry.id)? {
+            if !existing_review.usn.is_pending_sync(pending_usn)
+                || existing_review.mtime < entry.mtime
+            {
+                self.storage.update_revlog_entry(&entry)?;
+            }
+        } else {
+            self.storage.add_revlog_entry(&entry, false)?;
+        };
         Ok(())
     }
 
@@ -543,6 +565,8 @@ impl Collection {
                 self.storage.get_revlog_entry(id).map(|e| {
                     let mut e = e.unwrap();
                     e.usn = server_usn_if_client.unwrap_or(e.usn);
+                    // FIXME@kaben: remove debugging output.
+                    println!("XXXXX (chunks) Collection.get_extended_chunk(): revlog e: {e:?}");
                     e
                 })
             })
