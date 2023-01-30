@@ -1,4 +1,4 @@
-from . import (
+from . import (  # review_stats,
     about,
     addcards,
     addfield,
@@ -35,7 +35,6 @@ from . import (
     profiles,
     progress,
     reposition,
-    # review_stats,
     setgroup,
     setlang,
     stats,
