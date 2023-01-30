@@ -1,3 +1,6 @@
+# Copyright: Ankitects Pty Ltd and contributors
+# License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+
 # Copyright: (c) Kaben Nanlohy <kaben.nanlohy@gmail.com>
 # 
 # This program is free software: you can redistribute it and/or modify it under
