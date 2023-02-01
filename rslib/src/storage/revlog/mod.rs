@@ -15,6 +15,7 @@ use crate::prelude::*;
 use crate::revlog::RevlogEntry;
 use crate::revlog::RevlogId;
 use crate::revlog::RevlogReviewKind;
+use crate::tags::join_tags;
 use crate::tags::split_tags;
 
 pub(crate) struct StudiedToday {
@@ -119,6 +120,64 @@ impl SqliteStorage {
                 entry.ease_factor,
                 entry.taken_millis,
                 entry.review_kind as u8
+            ])?;
+        Ok(Some(RevlogId(entry.id.0)))
+    }
+
+    /// Adds the entry, if its id is unique. If it is not, and `uniquify` is
+    /// true, adds it with a new id. Returns the added id.
+    /// (I.e., the option is safe to unwrap, if `uniquify` is true.)
+    #[allow(dead_code)]
+    pub(crate) fn add_extended_revlog_entry(
+        &self,
+        entry: &RevlogEntry,
+        uniquify: bool,
+    ) -> Result<Option<RevlogId>> {
+        let mut available_id = entry.id.0;
+
+        if uniquify {
+            // FIXME@kaben: test uniquify works.
+            while available_id < entry.id.0 + 1000 {
+                match self.db.query_row(
+                    "SELECT id FROM review_notes WHERE id == ? AND vis IN ('V', 'D')",
+                    [available_id],
+                    |row| row.get::<_, i64>(0),
+                ) {
+                    Err(e) => {
+                        match e {
+                            rusqlite::Error::QueryReturnedNoRows => {
+                                //FIXME@kaben: remove debug output.
+                                //println!("***** SqliteStorage.add_revlog_entry(): found
+                                // available_id:{available_id:?}");
+                                break;
+                            }
+                            _ => {
+                                return Err(AnkiError::db_error(
+                                    format!("error during search for available revlog ID: {e:?}"),
+                                    crate::error::DbErrorKind::Other,
+                                ))
+                            }
+                        }
+                    }
+                    _ => available_id += 1,
+                }
+            }
+        }
+        self.db
+            .prepare_cached(include_str!("add_extended.sql"))?
+            .execute(params![
+                available_id,
+                entry.cid,
+                entry.usn,
+                entry.button_chosen,
+                entry.interval,
+                entry.last_interval,
+                entry.ease_factor,
+                entry.taken_millis,
+                entry.review_kind as u8,
+                entry.feedback,
+                join_tags(&entry.tags),
+                entry.mtime.0,
             ])?;
         Ok(Some(RevlogId(entry.id.0)))
     }

@@ -364,7 +364,7 @@ impl Collection {
                 self.storage.update_revlog_entry(&entry)?;
             }
         } else {
-            self.storage.add_revlog_entry(&entry, false)?;
+            self.storage.add_extended_revlog_entry(&entry, false)?;
         };
         Ok(())
     }
