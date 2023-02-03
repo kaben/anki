@@ -81,6 +81,7 @@ def start_ipython_kernel(stdout, stderr):
         class Worker(QObject):
             def __init__(self, loop, ipy_kernel_app):
                 super().__init__()
+                self.shouldexit = False
                 self.loop = loop
                 self.ipy_kernel_app = ipy_kernel_app
 
@@ -91,6 +92,16 @@ def start_ipython_kernel(stdout, stderr):
             def run(self):
                 sys._ipython_kernel_running = True
                 while True:
+                    if self.shouldexit:
+                        #self.ipy_kernel_app.close()
+                        sys._ipython_kernel_running = False
+                        return
+                    if self.ipy_kernel_app.kernel.shell.exit_now:
+                        log.debug(
+                            "IPython kernel stopping (%s)", self.connection_file
+                        )
+                        sys._ipython_kernel_running = False
+                        return
                     try:
                         # Use the IPython stdout/stderr while running the kernel.
                         # Without this, stdout/stderr print to the console from
@@ -98,13 +109,9 @@ def start_ipython_kernel(stdout, stderr):
                         # IPython/Jupyter.
                         with PushStdout(ipy_stdout, ipy_stderr):
                             self.run_once()
-                            if self.ipy_kernel_app.kernel.shell.exit_now:
-                                log.debug(
-                                    "IPython kernel stopping (%s)", self.connection_file
-                                )
-                                sys._ipython_kernel_running = False
-                                return
                         QThread.msleep(25)
+                        #if QThread.currentThread.isInterruptionRequested():
+                        #    return
                     except:
                         log.error("Error polling Jupyter loop", exc_info=True)
 
