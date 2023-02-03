@@ -607,10 +607,8 @@ class Reviewer:
         origSize = len(buf)
         buf = buf.replace("<hr id=answer>", "")
         hadHR = len(buf) != origSize
-        # munge correct value
         expected = self.typeCorrect
         provided = self.typedAnswer
-        # compare with typed answer
         output = self.mw.col.compare_answer(expected, provided)
         # and update the type answer area
         def repl(match: Match) -> str:
