@@ -81,6 +81,14 @@ mw: Optional[AnkiQt] = None  # set on init
 
 import aqt.forms
 
+from aqt import (  # isort:skip
+    about,
+    mediasync,
+    preferences,
+    # review_stats,
+    stats,
+)
+
 # Dialog manager
 ##########################################################################
 # ensures only one copy of the window is open at once, and provides
@@ -98,7 +106,6 @@ import aqt.forms
 
 
 from aqt import addcards, addons, browser, editcurrent, filtered_deck  # isort:skip
-from aqt import stats, about, preferences, mediasync  # isort:skip
 
 
 class DialogManager:

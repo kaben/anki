@@ -103,3 +103,21 @@ impl Collection {
         Ok(())
     }
 }
+
+// Moved code below to rslib/src/detailed_feedback/revlog/mod.rs.
+
+//impl From<RevlogEntry> for pb::stats::RevlogEntry {
+//    fn from(e: RevlogEntry) -> Self {
+//        pb::stats::RevlogEntry {
+//            id: e.id.0,
+//            cid: e.cid.0,
+//            usn: e.usn.0,
+//            button_chosen: e.button_chosen as u32,
+//            interval: e.interval,
+//            last_interval: e.last_interval,
+//            ease_factor: e.ease_factor,
+//            taken_millis: e.taken_millis,
+//            review_kind: e.review_kind as i32,
+//        }
+//    }
+//}

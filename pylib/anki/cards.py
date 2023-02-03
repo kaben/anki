@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pprint
 import time
+from typing import NewType, Sequence
 
 import anki  # pylint: disable=unused-import
 import anki.collection
@@ -155,6 +156,12 @@ class Card(DeprecatedNamesMixin):
         if not self._note or reload:
             self._note = self.col.get_note(self.nid)
         return self._note
+
+    def reviews(self) -> list[anki.revlog.RevlogEntry]:
+        return [self.col.get_revlog_entry(id) for id in self.review_ids()]
+
+    def review_ids(self) -> Sequence[anki.revlog.RevlogId]:
+        return self.col.review_ids_of_card(self.id)
 
     def note_type(self) -> NotetypeDict:
         return self.col.models.get(self.note().mid)

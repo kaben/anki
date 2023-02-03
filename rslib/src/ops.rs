@@ -22,11 +22,13 @@ pub enum Op {
     RemoveDeck,
     RemoveNote,
     RemoveNotetype,
+    RemoveRevlogEntry,
     RemoveTag,
     RenameDeck,
     ReparentDeck,
     RenameTag,
     ReparentTag,
+    ReplayCardHistories,
     ScheduleAsNew,
     SetCardDeck,
     SetDueDate,
@@ -40,6 +42,7 @@ pub enum Op {
     UpdateDeckConfig,
     UpdateNote,
     UpdatePreferences,
+    UpdateRevlogEntry,
     UpdateTag,
     UpdateNotetype,
     SetCurrentDeck,
@@ -59,6 +62,7 @@ impl Op {
             Op::Import => tr.actions_import(),
             Op::RemoveDeck => tr.decks_delete_deck(),
             Op::RemoveNote => tr.studying_delete_note(),
+            Op::RemoveRevlogEntry => tr.actions_remove_revlog_entry(),
             Op::RenameDeck => tr.actions_rename_deck(),
             Op::ScheduleAsNew => tr.actions_forget_card(),
             Op::SetDueDate => tr.actions_set_due_date(),
@@ -68,6 +72,7 @@ impl Op {
             Op::UpdateDeck => tr.actions_update_deck(),
             Op::UpdateNote => tr.actions_update_note(),
             Op::UpdatePreferences => tr.preferences_preferences(),
+            Op::UpdateRevlogEntry => tr.actions_update_revlog_entry(),
             Op::UpdateTag => tr.actions_update_tag(),
             Op::SetCardDeck => tr.browsing_change_deck(),
             Op::SetFlag => tr.actions_set_flag(),
@@ -78,6 +83,7 @@ impl Op {
             Op::RemoveTag => tr.actions_remove_tag(),
             Op::ReparentTag => tr.actions_rename_tag(),
             Op::ReparentDeck => tr.actions_rename_deck(),
+            Op::ReplayCardHistories => tr.actions_replay_card_histories(),
             Op::BuildFilteredDeck => tr.actions_build_filtered_deck(),
             Op::RebuildFilteredDeck => tr.actions_build_filtered_deck(),
             Op::EmptyFilteredDeck => tr.studying_empty(),
@@ -105,6 +111,7 @@ pub struct StateChanges {
     pub config: bool,
     pub deck_config: bool,
     pub mtime: bool,
+    pub revlog_entry: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -144,7 +151,12 @@ impl OpChanges {
 
     pub fn requires_browser_table_redraw(&self) -> bool {
         let c = &self.changes;
-        c.card || c.notetype || c.config || (c.note && self.op != Op::AddNote) || c.deck
+        c.card
+            || c.notetype
+            || c.config
+            || (c.note && self.op != Op::AddNote)
+            || c.deck
+            || c.revlog_entry
     }
 
     pub fn requires_browser_sidebar_redraw(&self) -> bool {

@@ -2,11 +2,18 @@
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 use super::RevlogEntry;
+use super::RevlogTags;
 use crate::prelude::*;
 
 #[derive(Debug)]
 pub(crate) enum UndoableRevlogChange {
     Added(Box<RevlogEntry>),
+
+    // The `Updated` enum value added to support a version of Anki for
+    // detailed review feedback.
+    Updated(Box<RevlogEntry>),
+    TagsUpdated(Box<RevlogTags>),
+
     Removed(Box<RevlogEntry>),
 }
 
@@ -18,6 +25,26 @@ impl Collection {
                 self.save_undo(UndoableRevlogChange::Removed(revlog));
                 Ok(())
             }
+
+            // The `Updated` enum value added to support a version of Anki for detailed review
+            // feedback. This match calls `update_revlog_entry_undoable()` which has been
+            // implemented in `rslib/src/detailed_feedback/revlog/undo.rs`.
+            UndoableRevlogChange::Updated(revlog) => {
+                let current = self
+                    .storage
+                    .get_revlog_entry(revlog.id)?
+                    .or_invalid("revlog entry disappeared")?;
+                self.update_revlog_entry_undoable(&revlog, current)
+            }
+
+            UndoableRevlogChange::TagsUpdated(revlog_tags) => {
+                let current = self
+                    .storage
+                    .get_revlog_tags_by_id(revlog_tags.id)?
+                    .or_invalid("revlog entry disappeared")?;
+                self.update_revlog_tags_undoable(&revlog_tags, current)
+            }
+
             UndoableRevlogChange::Removed(revlog) => {
                 self.storage.add_revlog_entry(&revlog, false)?;
                 self.save_undo(UndoableRevlogChange::Added(revlog));
@@ -32,6 +59,13 @@ impl Collection {
         let id = entry.id;
         self.save_undo(UndoableRevlogChange::Added(Box::new(entry)));
         Ok(id)
+    }
+
+    /// Remove the provided revlog entry.
+    pub(crate) fn remove_revlog_entry_undoable(&mut self, entry: RevlogEntry) -> Result<()> {
+        self.storage.remove_revlog_entry(entry.id)?;
+        self.save_undo(UndoableRevlogChange::Removed(Box::new(entry)));
+        Ok(())
     }
 
     /// Add the provided revlog entry, if its ID is unique.

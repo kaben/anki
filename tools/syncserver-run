@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# Run a sync server on port 8081. Start using a command like the following,
+# setting SYNC_USER1, SYNC_USER2, ... as needed for users of the sync server.
+#
+# SYNC_USER1="username_1:password_1" SYNC_USER2="username_2:password_2" ./tools/syncserver-run
+#
+# To configure Anki to use this sync server, set the "Self-hosted sync server"
+# field in the "Syncing" preferences tab to "http://0.0.0.0:8081/".
+#
+# This is an advanced feature, targeted at users who are comfortable with
+# networking and the command line. If you use this, the expectation is you can
+# resolve any setup/network/firewall issues you run into yourself, and use of
+# this is entirely at your own risk.
+#
+# For more info see: https://docs.ankiweb.net/sync-server.html
+
+SYNC_PORT=8081 ./run --syncserver $*

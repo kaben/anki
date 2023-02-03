@@ -9,6 +9,7 @@ package anki.cards;
 
 import "anki/generic.proto";
 import "anki/collection.proto";
+import "anki/revlog.proto";
 
 service CardsService {
   rpc GetCard(CardId) returns (Card);
@@ -16,6 +17,7 @@ service CardsService {
   rpc RemoveCards(RemoveCardsRequest) returns (generic.Empty);
   rpc SetDeck(SetDeckRequest) returns (collection.OpChangesWithCount);
   rpc SetFlag(SetFlagRequest) returns (collection.OpChangesWithCount);
+  rpc ReviewsOfCard(CardId) returns (revlog.RevlogIds);
 }
 message CardId {
   int64 cid = 1;

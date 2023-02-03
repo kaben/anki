@@ -69,13 +69,36 @@ impl SqlWriter<'_> {
 
     fn write_table_sql(&mut self) {
         let sql = match self.table {
+            // FIXME@kaben: test next line,
+            RequiredTable::Reviews => "select r.id from reviews as r where ",
             RequiredTable::Cards => "select c.id from cards c where ",
             RequiredTable::Notes => "select n.id from notes n where ",
-            _ => match self.item_type {
+            // FIXME@kaben: test next fragment,
+            RequiredTable::ReviewsAndCards => match self.item_type {
+                ReturnItemType::Reviews => "select r.id from reviews as r, cards c where r.cid=c.id and ",
+                ReturnItemType::Cards => "select distinct c.id from reviews as r, cards c where r.cid=c.id and ",
+                ReturnItemType::Notes => unreachable!(),
+
+            },
+            // FIXME@kaben: test next fragment,
+            RequiredTable::CardsAndNotes => match self.item_type {
+                ReturnItemType::Reviews => unreachable!(),
                 ReturnItemType::Cards => "select c.id from cards c, notes n where c.nid=n.id and ",
-                ReturnItemType::Notes => {
-                    "select distinct n.id from cards c, notes n where c.nid=n.id and "
-                }
+                ReturnItemType::Notes => "select distinct n.id from cards c, notes n where c.nid=n.id and ",
+            },
+
+            _ => match self.item_type {
+            // FIXME@kaben: test next line,
+                ReturnItemType::Reviews => "select r.id from reviews as r, cards c, notes n where r.cid=c.id and c.nid=n.id and ",
+                //ReturnItemType::Cards => "select c.id from cards c, notes n where c.nid=n.id and ",
+                //ReturnItemType::Notes => {
+                //    "select distinct n.id from cards c, notes n where c.nid=n.id and "
+                //}
+
+                // FIXME@kaben: test regression where no search results returned when no reviews
+                // yet. This was resolved by using left join on reviews instead of inner join.
+                ReturnItemType::Cards => "SELECT DISTINCT c.id FROM notes AS n INNER JOIN cards AS c ON n.id == c.nid LEFT JOIN reviews AS r ON c.id == r.cid WHERE ",
+                ReturnItemType::Notes => "SELECT DISTINCT n.id FROM notes AS n INNER JOIN cards AS c ON n.id == c.nid LEFT JOIN reviews AS r ON c.id == r.cid WHERE ",
             },
         };
         self.sql.push_str(sql);
@@ -88,7 +111,13 @@ impl SqlWriter<'_> {
         match self.table {
             RequiredTable::Notes | RequiredTable::CardsAndNotes => "n.id",
             RequiredTable::Cards => "c.nid",
-            RequiredTable::CardsOrNotes => unreachable!(),
+            //FIXME@kaben: remove.
+            //RequiredTable::CardsOrNotes => unreachable!(),
+            RequiredTable::ReviewsOrCardsOrNotes => unreachable!(),
+            // FIXME@kaben: handle cases below.
+            RequiredTable::Reviews
+            | RequiredTable::ReviewsAndCards
+            | RequiredTable::ReviewsAndCardsAndNotes => unreachable!(),
         }
     }
 
@@ -180,6 +209,12 @@ impl SqlWriter<'_> {
             }
             SearchNode::Property { operator, kind } => self.write_prop(operator, kind)?,
             SearchNode::WholeCollection => write!(self.sql, "true").unwrap(),
+
+            SearchNode::RevlogIds(rids) => {
+                write!(self.sql, "r.id in ({})", rids).unwrap();
+            }
+            SearchNode::RTag { tag, is_re } => self.write_rtag(&norm(tag), *is_re),
+            SearchNode::RFeedback { text, is_re } => self.write_feedback(&norm(text), *is_re),
         };
         Ok(())
     }
@@ -232,12 +267,53 @@ impl SqlWriter<'_> {
         }
     }
 
+    fn write_rtag(&mut self, tag: &str, is_re: bool) {
+        if is_re {
+            // FIXME@kaben: remove debugging output.
+            //println!("write_rtag(): (?i){tag}");
+            self.args.push(format!("(?i){tag}"));
+            write!(self.sql, "regexp_tags(?{}, r.tags)", self.args.len()).unwrap();
+        } else {
+            match tag {
+                "none" => {
+                    write!(self.sql, "r.tags = ''").unwrap();
+                }
+                "*" => {
+                    write!(self.sql, "true").unwrap();
+                }
+                s if s.contains(' ') => write!(self.sql, "false").unwrap(),
+                text => {
+                    write!(self.sql, "r.tags regexp ?").unwrap();
+                    let re = &to_custom_re(text, r"\S");
+                    self.args.push(format!("(?i).* {}(::| ).*", re));
+                }
+            }
+        }
+    }
+
+    // NOTE@kaben: search recode in progress.
+    fn write_feedback(&mut self, text: &str, is_re: bool) {
+        if is_re {
+            self.args.push(format!("(?i){text}"));
+            write!(self.sql, "r.feedback regexp ?").unwrap();
+        } else {
+            // implicitly wrap in %
+            self.args.push(format!("%{}%", &to_sql(text)));
+            write!(
+                self.sql,
+                "r.feedback like ?{n} escape '\\'",
+                n = self.args.len(),
+            )
+            .unwrap();
+        }
+    }
+
     fn write_rated(&mut self, op: &str, days: i64, ease: &RatingKind) -> Result<()> {
         let today_cutoff = self.col.timing_today()?.next_day_at;
         let target_cutoff_ms = today_cutoff.adding_secs(86_400 * days).as_millis();
         let day_before_cutoff_ms = today_cutoff.adding_secs(86_400 * (days - 1)).as_millis();
 
-        write!(self.sql, "c.id in (select cid from revlog where id").unwrap();
+        write!(self.sql, "c.id in (select cid from reviews as r where id").unwrap();
 
         match op {
             ">" => write!(self.sql, " >= {}", target_cutoff_ms),
@@ -586,11 +662,11 @@ impl SqlWriter<'_> {
         write!(
             self.sql,
             concat!(
-                "((SELECT coalesce(min(id) > {cutoff}, false) FROM revlog WHERE cid = c.id ",
+                "((SELECT coalesce(min(id) > {cutoff}, false) FROM reviews AS r WHERE cid = c.id ",
                 // Exclude manual reschedulings
                 "AND ease != 0) ",
                 // Logically redundant, speeds up query
-                "AND c.id IN (SELECT cid FROM revlog WHERE id > {cutoff}))"
+                "AND c.id IN (SELECT cid FROM reviews AS r WHERE id > {cutoff}))"
             ),
             cutoff = cutoff,
         )
@@ -624,24 +700,70 @@ impl SqlWriter<'_> {
 pub enum RequiredTable {
     Notes,
     Cards,
+    Reviews,
+    ReviewsAndCards,
     CardsAndNotes,
-    CardsOrNotes,
+    //FIXME@kaben: remove.
+    //CardsOrNotes,
+    ReviewsAndCardsAndNotes,
+    ReviewsOrCardsOrNotes,
 }
 
 impl RequiredTable {
     fn combine(self, other: RequiredTable) -> RequiredTable {
+        //FIXME@kaben: Remove.
+        //match (self, other) {
+        //    (RequiredTable::CardsAndNotes, _) => RequiredTable::CardsAndNotes,
+        //    (_, RequiredTable::CardsAndNotes) => RequiredTable::CardsAndNotes,
+        //    (RequiredTable::CardsOrNotes, b) => b,
+        //    (a, RequiredTable::CardsOrNotes) => a,
+        //    (a, b) => {
+        //        if a == b {
+        //            a
+        //        } else {
+        //            RequiredTable::CardsAndNotes
+        //        }
+        //    }
+        //}
+
         match (self, other) {
-            (RequiredTable::CardsAndNotes, _) => RequiredTable::CardsAndNotes,
-            (_, RequiredTable::CardsAndNotes) => RequiredTable::CardsAndNotes,
-            (RequiredTable::CardsOrNotes, b) => b,
-            (a, RequiredTable::CardsOrNotes) => a,
-            (a, b) => {
-                if a == b {
-                    a
-                } else {
-                    RequiredTable::CardsAndNotes
-                }
+            (RequiredTable::ReviewsAndCardsAndNotes, _)
+            | (_, RequiredTable::ReviewsAndCardsAndNotes)
+            | (RequiredTable::CardsAndNotes, RequiredTable::ReviewsAndCards)
+            | (RequiredTable::ReviewsAndCards, RequiredTable::CardsAndNotes)
+            | (RequiredTable::Notes, RequiredTable::ReviewsAndCards)
+            | (RequiredTable::ReviewsAndCards, RequiredTable::Notes)
+            | (RequiredTable::Reviews, RequiredTable::CardsAndNotes)
+            | (RequiredTable::CardsAndNotes, RequiredTable::Reviews)
+            | (RequiredTable::Notes, RequiredTable::Reviews)
+            | (RequiredTable::Reviews, RequiredTable::Notes) => {
+                RequiredTable::ReviewsAndCardsAndNotes
             }
+
+            (RequiredTable::CardsAndNotes, RequiredTable::CardsAndNotes)
+            | (RequiredTable::Notes, RequiredTable::CardsAndNotes)
+            | (RequiredTable::CardsAndNotes, RequiredTable::Notes)
+            | (RequiredTable::Cards, RequiredTable::CardsAndNotes)
+            | (RequiredTable::CardsAndNotes, RequiredTable::Cards)
+            | (RequiredTable::Cards, RequiredTable::Notes)
+            | (RequiredTable::Notes, RequiredTable::Cards) => RequiredTable::CardsAndNotes,
+
+            (RequiredTable::ReviewsAndCards, RequiredTable::ReviewsAndCards)
+            | (RequiredTable::Cards, RequiredTable::ReviewsAndCards)
+            | (RequiredTable::ReviewsAndCards, RequiredTable::Cards)
+            | (RequiredTable::Reviews, RequiredTable::ReviewsAndCards)
+            | (RequiredTable::ReviewsAndCards, RequiredTable::Reviews)
+            | (RequiredTable::Reviews, RequiredTable::Cards)
+            | (RequiredTable::Cards, RequiredTable::Reviews) => RequiredTable::ReviewsAndCards,
+
+            (RequiredTable::Reviews, RequiredTable::Reviews) => RequiredTable::Reviews,
+
+            (RequiredTable::Cards, RequiredTable::Cards) => RequiredTable::Cards,
+
+            (RequiredTable::Notes, RequiredTable::Notes) => RequiredTable::Notes,
+
+            (RequiredTable::ReviewsOrCardsOrNotes, b) => b,
+            (a, RequiredTable::ReviewsOrCardsOrNotes) => a,
         }
     }
 }
@@ -649,12 +771,21 @@ impl RequiredTable {
 impl Node {
     fn required_table(&self) -> RequiredTable {
         match self {
-            Node::And => RequiredTable::CardsOrNotes,
-            Node::Or => RequiredTable::CardsOrNotes,
+            //FIXME@kaben: remove.
+            //Node::And => RequiredTable::CardsOrNotes,
+            //Node::Or => RequiredTable::CardsOrNotes,
+            Node::And => RequiredTable::ReviewsOrCardsOrNotes,
+            Node::Or => RequiredTable::ReviewsOrCardsOrNotes,
             Node::Not(node) => node.required_table(),
-            Node::Group(nodes) => nodes.iter().fold(RequiredTable::CardsOrNotes, |cur, node| {
-                cur.combine(node.required_table())
-            }),
+            //FIXME@kaben: remove.
+            //Node::Group(nodes) => nodes.iter().fold(RequiredTable::CardsOrNotes, |cur, node| {
+            //    cur.combine(node.required_table())
+            //}),
+            Node::Group(nodes) => nodes
+                .iter()
+                .fold(RequiredTable::ReviewsOrCardsOrNotes, |cur, node| {
+                    cur.combine(node.required_table())
+                }),
             Node::Search(node) => node.required_table(),
         }
     }
@@ -685,10 +816,17 @@ impl SearchNode {
             SearchNode::Notetype(_) => RequiredTable::Notes,
             SearchNode::EditedInDays(_) => RequiredTable::Notes,
 
-            SearchNode::NoteIds(_) => RequiredTable::CardsOrNotes,
-            SearchNode::WholeCollection => RequiredTable::CardsOrNotes,
+            //FIXME@kaben: remove.
+            //SearchNode::NoteIds(_) => RequiredTable::CardsOrNotes,
+            //SearchNode::WholeCollection => RequiredTable::CardsOrNotes,
+            SearchNode::NoteIds(_) => RequiredTable::ReviewsOrCardsOrNotes,
+            SearchNode::WholeCollection => RequiredTable::ReviewsOrCardsOrNotes,
 
             SearchNode::CardTemplate(_) => RequiredTable::CardsAndNotes,
+
+            SearchNode::RTag { .. } => RequiredTable::Reviews,
+            SearchNode::RevlogIds(_) => RequiredTable::Reviews,
+            SearchNode::RFeedback { .. } => RequiredTable::Reviews,
         }
     }
 }
@@ -793,8 +931,8 @@ mod test {
             s(ctx, "introduced:3").0,
             format!(
                 concat!(
-                    "(((SELECT coalesce(min(id) > {cutoff}, false) FROM revlog WHERE cid = c.id AND ease != 0) ",
-                    "AND c.id IN (SELECT cid FROM revlog WHERE id > {cutoff})))"
+                    "(((SELECT coalesce(min(id) > {cutoff}, false) FROM reviews AS r WHERE cid = c.id AND ease != 0) ",
+                    "AND c.id IN (SELECT cid FROM reviews AS r WHERE id > {cutoff})))"
                 ),
                 cutoff = (timing.next_day_at.0 - (86_400 * 3)) * 1_000,
             )
@@ -887,14 +1025,14 @@ mod test {
         assert_eq!(
             s(ctx, "rated:2").0,
             format!(
-                "(c.id in (select cid from revlog where id >= {} and ease > 0))",
+                "(c.id in (select cid from reviews as r where id >= {} and ease > 0))",
                 (timing.next_day_at.0 - (86_400 * 2)) * 1_000
             )
         );
         assert_eq!(
             s(ctx, "rated:400:1").0,
             format!(
-                "(c.id in (select cid from revlog where id >= {} and ease = 1))",
+                "(c.id in (select cid from reviews as r where id >= {} and ease = 1))",
                 (timing.next_day_at.0 - (86_400 * 400)) * 1_000
             )
         );
@@ -904,7 +1042,7 @@ mod test {
         assert_eq!(
             s(ctx, "resched:400").0,
             format!(
-                "(c.id in (select cid from revlog where id >= {} and ease = 0))",
+                "(c.id in (select cid from reviews as r where id >= {} and ease = 0))",
                 (timing.next_day_at.0 - (86_400 * 400)) * 1_000
             )
         );
@@ -964,7 +1102,9 @@ mod test {
     fn required_table() {
         assert_eq!(
             Node::Group(parse("").unwrap()).required_table(),
-            RequiredTable::CardsOrNotes
+            //FIXME@kaben: remove.
+            //RequiredTable::CardsOrNotes
+            RequiredTable::ReviewsOrCardsOrNotes
         );
         assert_eq!(
             Node::Group(parse("test").unwrap()).required_table(),
@@ -980,7 +1120,9 @@ mod test {
         );
         assert_eq!(
             Node::Group(parse("nid:1").unwrap()).required_table(),
-            RequiredTable::CardsOrNotes
+            //FIXME@kaben: remove.
+            //RequiredTable::CardsOrNotes
+            RequiredTable::ReviewsOrCardsOrNotes
         );
         assert_eq!(
             Node::Group(parse("cid:1 nid:1").unwrap()).required_table(),
@@ -989,6 +1131,54 @@ mod test {
         assert_eq!(
             Node::Group(parse("test nid:1").unwrap()).required_table(),
             RequiredTable::Notes
+        );
+    }
+
+    #[test]
+    fn reviews_sql() {
+        // re-use the mediacheck .anki2 file for now
+        use crate::media::check::test::MEDIACHECK_ANKI2;
+        let dir = tempdir().unwrap();
+        let col_path = dir.path().join("col.anki2");
+        write_file(&col_path, MEDIACHECK_ANKI2).unwrap();
+
+        let mut col = CollectionBuilder::new(col_path).build().unwrap();
+        let ctx = &mut col;
+
+        // Search by review ID (i.e., by revlog ID)
+        assert_eq!(s(ctx, "rid:1"), ("(r.id in (1))".into(), vec![]));
+        // Search by review tag
+        assert_eq!(
+            s(ctx, "rtag:fubaz"),
+            (
+                "(r.tags regexp ?)".into(),
+                vec!["(?i).* fubaz(::| ).*".into()]
+            )
+        );
+        // Search for "fubaz" in review annotation text
+        assert_eq!(
+            s(ctx, "feedback:fubaz"),
+            (
+                "(r.feedback like ?1 escape '\\')".into(),
+                vec!["%fubaz%".into()]
+            )
+        );
+    }
+
+    // NOTE@kaben: search recode in progress.
+    #[test]
+    fn reviews_required_table() {
+        assert_eq!(
+            Node::Group(parse("rid:1").unwrap()).required_table(),
+            RequiredTable::Reviews
+        );
+        assert_eq!(
+            Node::Group(parse("rtag:fubaz").unwrap()).required_table(),
+            RequiredTable::Reviews
+        );
+        assert_eq!(
+            Node::Group(parse("feedback:fubaz").unwrap()).required_table(),
+            RequiredTable::Reviews
         );
     }
 }

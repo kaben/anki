@@ -32,6 +32,10 @@ hooks = [
         legacy_hook="remNotes",
     ),
     Hook(
+        name="reviews_will_be_deleted",
+        args=["col: anki.collection.Collection", "ids: Sequence[anki.revlog.RevlogId]"],
+    ),
+    Hook(
         name="media_files_did_export",
         args=["count: int"],
         doc="Only used by legacy .apkg exporter. Will be deprecated in the future.",

@@ -30,6 +30,7 @@ use crate::prelude::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ReturnItemType {
+    Reviews,
     Cards,
     Notes,
 }
@@ -57,9 +58,16 @@ impl AsReturnItemType for NoteId {
     }
 }
 
+impl AsReturnItemType for RevlogId {
+    fn as_return_item_type() -> ReturnItemType {
+        ReturnItemType::Reviews
+    }
+}
+
 impl ReturnItemType {
     fn required_table(&self) -> RequiredTable {
         match self {
+            ReturnItemType::Reviews => RequiredTable::Reviews,
             ReturnItemType::Cards => RequiredTable::Cards,
             ReturnItemType::Notes => RequiredTable::Notes,
         }
@@ -69,7 +77,9 @@ impl ReturnItemType {
 impl SortMode {
     fn required_table(&self) -> RequiredTable {
         match self {
-            SortMode::NoOrder => RequiredTable::CardsOrNotes,
+            //FIXME@kaben: Remove.
+            //SortMode::NoOrder => RequiredTable::CardsOrNotes,
+            SortMode::NoOrder => RequiredTable::ReviewsOrCardsOrNotes,
             SortMode::Builtin { column, .. } => column.required_table(),
             SortMode::Custom(ref text) => {
                 if text.contains("n.") {
@@ -95,7 +105,9 @@ impl Column {
             | Column::Notetype
             | Column::SortField
             | Column::Tags => RequiredTable::Notes,
-            _ => RequiredTable::CardsOrNotes,
+            // FIXME@kaben: Remove
+            //_ => RequiredTable::CardsOrNotes,
+            _ => RequiredTable::ReviewsOrCardsOrNotes,
         }
     }
 }
@@ -152,6 +164,13 @@ impl Drop for NoteTableGuard<'_> {
 }
 
 impl Collection {
+    pub fn search_reviews<N>(&mut self, search: N, mode: SortMode) -> Result<Vec<RevlogId>>
+    where
+        N: TryIntoSearch,
+    {
+        self.search(search, mode)
+    }
+
     pub fn search_cards<N>(&mut self, search: N, mode: SortMode) -> Result<Vec<CardId>>
     where
         N: TryIntoSearch,
@@ -188,6 +207,7 @@ impl Collection {
         self.add_order(&mut sql, item_type, mode)?;
 
         let mut stmt = self.storage.db.prepare(&sql)?;
+
         let ids: Vec<_> = stmt
             .query_map(params_from_iter(args.iter()), |row| row.get(0))?
             .collect::<std::result::Result<_, _>>()?;
@@ -335,6 +355,7 @@ fn write_order(
     let order = match item_type {
         ReturnItemType::Cards => card_order_from_sort_column(column),
         ReturnItemType::Notes => note_order_from_sort_column(column),
+        ReturnItemType::Reviews => review_order_from_sort_column(column),
     };
     require!(!order.is_empty(), "Can't sort {item_type:?} by {column:?}.");
     if reverse {
@@ -371,6 +392,18 @@ fn card_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::SortField => "n.sfld collate nocase asc, c.ord asc".into(),
         Column::Tags => "n.tags asc".into(),
         Column::Answer | Column::Custom | Column::Question => "".into(),
+
+        // FIXME@kaben: change these sort criteria.
+        Column::NoteId => "c.id asc".into(),
+        Column::CardId => "c.id asc".into(),
+        Column::RevlogId => "c.id asc".into(),
+        Column::RevlogMod => "c.id asc".into(),
+        Column::ReviewedAt => "c.id asc".into(),
+        Column::ReviewFeedback => "c.id asc".into(),
+        Column::ReviewTags => "c.id asc".into(),
+        Column::ReviewButton => "c.id asc".into(),
+        Column::ReviewLastInterval => "c.id asc".into(),
+        Column::ReviewType => "c.id asc".into(),
     }
 }
 
@@ -390,7 +423,24 @@ fn note_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::SortField => "n.sfld collate nocase asc".into(),
         Column::Tags => "n.tags asc".into(),
         Column::Answer | Column::Custom | Column::Question => "".into(),
+
+        // FIXME@kaben: change these sort criteria.
+        Column::NoteId => "n.id asc".into(),
+        Column::CardId => "n.id asc".into(),
+        Column::RevlogId => "n.id asc".into(),
+        Column::RevlogMod => "n.id asc".into(),
+        Column::ReviewedAt => "n.id asc".into(),
+        Column::ReviewFeedback => "n.id asc".into(),
+        Column::ReviewTags => "n.id asc".into(),
+        Column::ReviewButton => "n.id asc".into(),
+        Column::ReviewLastInterval => "n.id asc".into(),
+        Column::ReviewType => "n.id asc".into(),
     }
+}
+
+fn review_order_from_sort_column(_column: Column) -> Cow<'static, str> {
+    // FIXME@kaben: refine sort criteria.
+    "r.id asc".into()
 }
 
 fn prepare_sort(col: &mut Collection, column: Column, item_type: ReturnItemType) -> Result<()> {
@@ -413,6 +463,8 @@ fn prepare_sort(col: &mut Collection, column: Column, item_type: ReturnItemType)
             Column::Notetype => include_str!("notetype_order.sql"),
             _ => return Ok(()),
         },
+        // FIXME@kaben: handle case below.
+        ReturnItemType::Reviews => return Ok(()),
     };
 
     col.storage.db.execute_batch(sql)?;

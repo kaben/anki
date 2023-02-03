@@ -23,3 +23,9 @@ types-waitress
 # transitive windows dependencies
 atomicwrites
 colorama
+
+jsonschema[format-nongpl]==4.17.3
+jupyter_existing_provisioner
+jupyterlab
+scipy
+seaborn

@@ -13,7 +13,10 @@ use super::SqliteStorage;
 use crate::error::Result;
 use crate::prelude::*;
 use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogId;
 use crate::revlog::RevlogReviewKind;
+use crate::tags::join_tags;
+use crate::tags::split_tags;
 
 pub(crate) struct StudiedToday {
     pub cards: u32,
@@ -41,6 +44,14 @@ fn row_to_revlog_entry(row: &Row) -> Result<RevlogEntry> {
         ease_factor: row.get(6)?,
         taken_millis: row.get(7).unwrap_or_default(),
         review_kind: row.get(8).unwrap_or_default(),
+
+        // The following three fields were added to support a version of Anki for detailed review
+        // feedback.
+        mtime: row.get(9)?,
+        feedback: row.get(10)?,
+        tags: split_tags(row.get_ref_unwrap(11).as_str()?)
+            .map(Into::into)
+            .collect(),
     })
 }
 
@@ -67,12 +78,40 @@ impl SqliteStorage {
         entry: &RevlogEntry,
         uniquify: bool,
     ) -> Result<Option<RevlogId>> {
-        let added = self
-            .db
+        let mut available_id = entry.id.0;
+
+        if uniquify {
+            // FIXME@kaben: test uniquify works.
+            while available_id < entry.id.0 + 1000 {
+                match self.db.query_row(
+                    "SELECT id FROM review_notes WHERE id == ? AND vis IN ('V', 'D')",
+                    [available_id],
+                    |row| row.get::<_, i64>(0),
+                ) {
+                    Err(e) => {
+                        match e {
+                            rusqlite::Error::QueryReturnedNoRows => {
+                                //FIXME@kaben: remove debug output.
+                                //println!("***** SqliteStorage.add_revlog_entry(): found
+                                // available_id:{available_id:?}");
+                                break;
+                            }
+                            _ => {
+                                return Err(AnkiError::db_error(
+                                    format!("error during search for available revlog ID: {e:?}"),
+                                    crate::error::DbErrorKind::Other,
+                                ))
+                            }
+                        }
+                    }
+                    _ => available_id += 1,
+                }
+            }
+        }
+        self.db
             .prepare_cached(include_str!("add.sql"))?
             .execute(params![
-                uniquify,
-                entry.id,
+                available_id,
                 entry.cid,
                 entry.usn,
                 entry.button_chosen,
@@ -82,7 +121,65 @@ impl SqliteStorage {
                 entry.taken_millis,
                 entry.review_kind as u8
             ])?;
-        Ok((added > 0).then(|| RevlogId(self.db.last_insert_rowid())))
+        Ok(Some(RevlogId(entry.id.0)))
+    }
+
+    /// Adds the entry, if its id is unique. If it is not, and `uniquify` is
+    /// true, adds it with a new id. Returns the added id.
+    /// (I.e., the option is safe to unwrap, if `uniquify` is true.)
+    #[allow(dead_code)]
+    pub(crate) fn add_extended_revlog_entry(
+        &self,
+        entry: &RevlogEntry,
+        uniquify: bool,
+    ) -> Result<Option<RevlogId>> {
+        let mut available_id = entry.id.0;
+
+        if uniquify {
+            // FIXME@kaben: test uniquify works.
+            while available_id < entry.id.0 + 1000 {
+                match self.db.query_row(
+                    "SELECT id FROM review_notes WHERE id == ? AND vis IN ('V', 'D')",
+                    [available_id],
+                    |row| row.get::<_, i64>(0),
+                ) {
+                    Err(e) => {
+                        match e {
+                            rusqlite::Error::QueryReturnedNoRows => {
+                                //FIXME@kaben: remove debug output.
+                                //println!("***** SqliteStorage.add_revlog_entry(): found
+                                // available_id:{available_id:?}");
+                                break;
+                            }
+                            _ => {
+                                return Err(AnkiError::db_error(
+                                    format!("error during search for available revlog ID: {e:?}"),
+                                    crate::error::DbErrorKind::Other,
+                                ))
+                            }
+                        }
+                    }
+                    _ => available_id += 1,
+                }
+            }
+        }
+        self.db
+            .prepare_cached(include_str!("add_extended.sql"))?
+            .execute(params![
+                available_id,
+                entry.cid,
+                entry.usn,
+                entry.button_chosen,
+                entry.interval,
+                entry.last_interval,
+                entry.ease_factor,
+                entry.taken_millis,
+                entry.review_kind as u8,
+                entry.feedback,
+                join_tags(&entry.tags),
+                entry.mtime.0,
+            ])?;
+        Ok(Some(RevlogId(entry.id.0)))
     }
 
     pub(crate) fn get_revlog_entry(&self, id: RevlogId) -> Result<Option<RevlogEntry>> {
@@ -97,7 +194,7 @@ impl SqliteStorage {
     /// deletions.
     pub(crate) fn remove_revlog_entry(&self, id: RevlogId) -> Result<()> {
         self.db
-            .prepare_cached("delete from revlog where id = ?")?
+            .prepare_cached("delete from reviews where id = ?")?
             .execute([id])?;
         Ok(())
     }
@@ -106,6 +203,27 @@ impl SqliteStorage {
         self.db
             .prepare_cached(concat!(include_str!("get.sql"), " where cid=?"))?
             .query_and_then([cid], row_to_revlog_entry)?
+            .collect()
+    }
+
+    // The following two functions were added to support a version of Anki for
+    // detailed review feedback.
+    pub(crate) fn get_revlog_entries_for_note(&self, nid: NoteId) -> Result<Vec<RevlogEntry>> {
+        self.db
+            .prepare_cached(concat!(
+                include_str!("get.sql"),
+                " INNER JOIN cards ON revlog.cid = cards.id WHERE cards.nid=?"
+            ))?
+            .query_and_then([nid], row_to_revlog_entry)?
+            .collect()
+    }
+    pub(crate) fn get_revlog_entries_with_tags(&self) -> Result<Vec<RevlogEntry>> {
+        self.db
+            .prepare_cached(concat!(
+                include_str!("get.sql"),
+                " WHERE revlog.tags IS NOT NULL and revlog.tags !=''"
+            ))?
+            .query_and_then([], row_to_revlog_entry)?
             .collect()
     }
 

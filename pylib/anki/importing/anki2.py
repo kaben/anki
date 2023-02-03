@@ -377,7 +377,12 @@ class Anki2Importer(Importer):
                     card[6] = CARD_TYPE_NEW
             cards.append(card)
             # we need to import revlog, rewriting card ids and bumping usn
-            for rev in self.src.db.execute("select * from revlog where cid = ?", scid):
+
+            # FIXME@kaben: This breaks compatibility with standard Anki due to extra columns.
+            for rev in self.src.db.execute(
+                "select id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags from reviews AS revlog where cid = ?",
+                scid,
+            ):
                 rev = list(rev)
                 rev[1] = card[0]
                 rev[2] = self.dst.usn()
@@ -389,9 +394,10 @@ class Anki2Importer(Importer):
 insert or ignore into cards values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             cards,
         )
+        # FIXME@kaben: This breaks compatibility with standard Anki due to extra columns.
         self.dst.db.executemany(
             """
-insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""",
+insert or ignore into reviews AS revlog (id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags) values (?,?,?,?,?,?,?,?,?,?,?,?)""",
             revlog,
         )
 

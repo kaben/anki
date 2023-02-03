@@ -23,16 +23,18 @@ from anki.notes import NoteId
 from anki.scheduler.base import ScheduleCardsAsNew
 from anki.tags import MARKED_TAG
 from anki.utils import is_mac
-from aqt import AnkiQt, gui_hooks
+from aqt import AnkiQt, colors, gui_hooks
 from aqt.editor import Editor
 from aqt.exporting import ExportDialog as LegacyExportDialog
 from aqt.import_export.exporting import ExportDialog
 from aqt.operations.card import set_card_deck, set_card_flag
 from aqt.operations.collection import redo, undo
 from aqt.operations.note import remove_notes
+from aqt.operations.revlog import remove_reviews
 from aqt.operations.scheduling import (
     bury_cards,
     forget_cards,
+    replay_card_histories,
     reposition_new_cards_dialog,
     set_due_date_dialog,
     suspend_cards,
@@ -46,7 +48,7 @@ from aqt.operations.tag import (
 )
 from aqt.qt import *
 from aqt.sound import av_player
-from aqt.switch import Switch
+from aqt.state_button import StateButton
 from aqt.undo import UndoActionsInfo
 from aqt.utils import (
     HelpPage,
@@ -168,18 +170,27 @@ class Browser(QMainWindow):
         focused = current_window() == self
         self.table.op_executed(changes, handler, focused)
         self.sidebar.op_executed(changes, handler, focused)
-        if changes.note_text:
+        if changes.note_text or changes.revlog_entry:
             if handler is not self.editor:
                 # fixme: this will leave the splitter shown, but with no current
                 # note being edited
                 note = self.editor.note
+                review = self.editor.review
+                not_found_error = False
                 if note:
                     try:
                         note.load()
                     except NotFoundError:
-                        self.editor.set_note(None)
-                        return
-                    self.editor.set_note(note)
+                        not_found_error = True
+                if review:
+                    try:
+                        review = self.col._backend.get_revlog_entry(review.id)
+                    except NotFoundError:
+                        pass
+                if not_found_error:
+                    self.editor.set_note(None)
+                else:
+                    self.editor.set_note(note, review)
 
         if changes.browser_table and changes.card:
             self.card = self.table.get_single_selected_card()
@@ -295,7 +306,7 @@ class Browser(QMainWindow):
         qconnect(f.actionFindDuplicates.triggered, self.onFindDupes)
         qconnect(f.actionFindReplace.triggered, self.onFindReplace)
         qconnect(f.actionManage_Note_Types.triggered, self.mw.onNoteTypes)
-        qconnect(f.actionDelete.triggered, self.delete_selected_notes)
+        qconnect(f.actionDelete.triggered, self.delete_selected_items)
 
         # cards
         qconnect(f.actionChange_Deck.triggered, self.set_deck_of_selected_cards)
@@ -305,6 +316,7 @@ class Browser(QMainWindow):
         qconnect(f.action_forget.triggered, self.forget_cards)
         qconnect(f.actionToggle_Suspend.triggered, self.suspend_selected_cards)
         qconnect(f.action_toggle_bury.triggered, self.bury_selected_cards)
+        qconnect(f.action_accel_replay.triggered, self.replay_card_histories)
 
         def set_flag_func(desired_flag: int) -> Callable:
             return lambda: self.set_flag_of_selected_cards(desired_flag)
@@ -509,12 +521,41 @@ class Browser(QMainWindow):
     def setup_table(self) -> None:
         self.table = Table(self)
         self.table.set_view(self.form.tableView)
-        switch = Switch(12, tr.browsing_cards(), tr.browsing_notes())
-        switch.setChecked(self.table.is_notes_mode())
-        switch.setToolTip(tr.browsing_toggle_showing_cards_notes())
-        qconnect(self.form.action_toggle_mode.triggered, switch.toggle)
-        qconnect(switch.toggled, self.on_table_state_changed)
-        self.form.gridLayout.addWidget(switch, 0, 0)
+
+        self.notes_button = StateButton(
+            tr.browsing_note_initial(), colors.ACCENT_NOTE, self
+        )
+        self.cards_button = StateButton(
+            tr.browsing_card_initial(), colors.ACCENT_CARD, self
+        )
+        self.reviews_button = StateButton(
+            tr.browsing_review_initial(), colors.ACCENT_REVIEW, self
+        )
+
+        self.notes_button.setChecked(self.table.is_notes_mode())
+        self.cards_button.setChecked(self.table.is_cards_mode())
+        self.reviews_button.setChecked(self.table.is_reviews_mode())
+
+        self.notes_button.setToolTip(tr.browsing_show_notes())
+        self.cards_button.setToolTip(tr.browsing_show_cards())
+        self.reviews_button.setToolTip(tr.browsing_show_reviews())
+
+        qconnect(self.form.action_show_notes.triggered, self.notes_button.toggle)
+        qconnect(self.form.action_show_cards.triggered, self.cards_button.toggle)
+        qconnect(self.form.action_show_reviews.triggered, self.reviews_button.toggle)
+
+        qconnect(self.notes_button.toggled, self.on_switch_to_notes_mode)
+        qconnect(self.cards_button.toggled, self.on_switch_to_cards_mode)
+        qconnect(self.reviews_button.toggled, self.on_switch_to_reviews_mode)
+
+        groupbox = QGroupBox()
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.notes_button)
+        hbox.addWidget(self.cards_button)
+        hbox.addWidget(self.reviews_button)
+        hbox.addStretch(1)
+        groupbox.setLayout(hbox)
+        self.form.gridLayout.addWidget(groupbox, 0, 0)
 
     def setupEditor(self) -> None:
         QShortcut(QKeySequence("Ctrl+Shift+P"), self, self.onTogglePreview)
@@ -543,10 +584,13 @@ class Browser(QMainWindow):
         # if there is only one selected card, use it in the editor
         # it might differ from the current card
         self.card = self.table.get_single_selected_card()
+        self.review = self.table.get_single_selected_review()
         self.singleCard = bool(self.card)
         self.form.splitter.widget(1).setVisible(self.singleCard)
         if self.singleCard:
-            self.editor.set_note(self.card.note(), focusTo=self.focusTo)
+            self.editor.set_note(
+                self.card.note(), review=self.review, focusTo=self.focusTo
+            )
             self.focusTo = None
             self.editor.card = self.card
         else:
@@ -602,10 +646,25 @@ class Browser(QMainWindow):
         self.form.actionNextCard.setEnabled(self.table.has_next())
 
     @ensure_editor_saved
-    def on_table_state_changed(self, checked: bool) -> None:
-        self.mw.progress.start()
-        self.table.toggle_state(checked, self._lastSearchTxt)
-        self.mw.progress.finish()
+    def on_switch_to_notes_mode(self, checked: bool) -> None:
+        if checked:
+            self.mw.progress.start()
+            self.table.switch_to_note_state(self._lastSearchTxt)
+            self.mw.progress.finish()
+
+    @ensure_editor_saved
+    def on_switch_to_cards_mode(self, checked: bool) -> None:
+        if checked:
+            self.mw.progress.start()
+            self.table.switch_to_card_state(self._lastSearchTxt)
+            self.mw.progress.finish()
+
+    @ensure_editor_saved
+    def on_switch_to_reviews_mode(self, checked: bool) -> None:
+        if checked:
+            self.mw.progress.start()
+            self.table.switch_to_review_state(self._lastSearchTxt)
+            self.mw.progress.finish()
 
     # Sidebar
     ######################################################################
@@ -756,7 +815,7 @@ class Browser(QMainWindow):
 
     @no_arg_trigger
     @skip_if_selection_is_empty
-    def delete_selected_notes(self) -> None:
+    def delete_selected_items(self) -> None:
         # ensure deletion is not accidentally triggered when the user is focused
         # in the editing screen or search bar
         focus = self.focusWidget()
@@ -764,11 +823,18 @@ class Browser(QMainWindow):
             return
 
         self.editor.set_note(None)
-        nids = self.table.to_row_of_unselected_note()
-        remove_notes(parent=self, note_ids=nids).run_in_background()
+
+        qids = self.table.to_row_of_unselected_item()
+        if self.table.is_notes_mode() or self.table.is_cards_mode():
+            nids = self.table.get_note_ids(qids)
+            remove_notes(parent=self, note_ids=nids).run_in_background()
+        elif self.table.is_reviews_mode():
+            rids = self.table.get_review_ids(qids)
+            remove_reviews(parent=self, review_ids=rids).run_in_background()
 
     # legacy
 
+    delete_selected_notes = delete_selected_items
     deleteNotes = delete_selected_notes
 
     # Deck change
@@ -979,6 +1045,13 @@ class Browser(QMainWindow):
             context=ScheduleCardsAsNew.Context.BROWSER,
         ):
             op.run_in_background()
+
+    @no_arg_trigger
+    @skip_if_selection_is_empty
+    @ensure_editor_saved
+    def replay_card_histories(self, *l, **kw) -> None:
+        cids = self.selected_cards()
+        replay_card_histories(parent=self, card_ids=cids).run_in_background()
 
     # Edit: selection
     ######################################################################

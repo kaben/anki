@@ -1,5 +1,6 @@
 # currently broken in pyoxidizer
-jsonschema<4.2
+# FIXME@kaben: required for jupyterlab
+#jsonschema<4.2
 
 -r requirements.base.txt
 -r requirements.anki.in

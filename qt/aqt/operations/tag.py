@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from anki.collection import OpChanges, OpChangesWithCount
+from anki.collection import OpChanges, OpChangesWithCount, OpChangesWithCounts
 from anki.notes import NoteId
 from aqt.operations import CollectionOp
 from aqt.qt import QWidget
@@ -51,10 +51,15 @@ def rename_tag(
     parent: QWidget,
     current_name: str,
     new_name: str,
-) -> CollectionOp[OpChangesWithCount]:
-    def success(out: OpChangesWithCount) -> None:
-        if out.count:
-            tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
+) -> CollectionOp[OpChangesWithCounts]:
+    def success(out: OpChangesWithCounts) -> None:
+        if out.counts[0] or out.counts[1]:
+            tooltip(
+                tr.browsing_notes_and_reviews_updated(
+                    note_count=out.counts[0], review_count=out.counts[1]
+                ),
+                parent=parent,
+            )
         else:
             showInfo(tr.browsing_tag_rename_warning_empty(), parent=parent)
 
@@ -66,21 +71,33 @@ def rename_tag(
 
 def remove_tags_from_all_notes(
     *, parent: QWidget, space_separated_tags: str
-) -> CollectionOp[OpChangesWithCount]:
+) -> CollectionOp[OpChangesWithCounts]:
     return CollectionOp(
         parent, lambda col: col.tags.remove(space_separated_tags=space_separated_tags)
     ).success(
-        lambda out: tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
+        lambda out: tooltip(
+            tr.browsing_notes_and_reviews_updated(
+                note_count=out.counts[0], review_count=out.counts[1]
+            ),
+            parent=parent,
+        )
     )
 
 
+# FIXME@kaben: changed to update revlog entries, but can't test until drag and
+# drop works.
 def reparent_tags(
     *, parent: QWidget, tags: Sequence[str], new_parent: str
-) -> CollectionOp[OpChangesWithCount]:
+) -> CollectionOp[OpChangesWithCounts]:
     return CollectionOp(
         parent, lambda col: col.tags.reparent(tags=tags, new_parent=new_parent)
     ).success(
-        lambda out: tooltip(tr.browsing_notes_updated(count=out.count), parent=parent)
+        lambda out: tooltip(
+            tr.browsing_notes_and_reviews_updated(
+                note_count=out.counts[0], review_count=out.counts[1]
+            ),
+            parent=parent,
+        )
     )
 
 

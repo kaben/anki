@@ -226,6 +226,8 @@
     <addaction name="actionClose"/>
     <addaction name="separator"/>
     <addaction name="actionCreateFilteredDeck"/>
+    <addaction name="separator"/>
+    <addaction name="actionDelete"/>
    </widget>
    <widget class="QMenu" name="menuJump">
     <property name="title">
@@ -276,6 +278,7 @@
     <addaction name="menuFlag"/>
     <addaction name="separator"/>
     <addaction name="action_Info"/>
+    <addaction name="action_accel_replay"/>
    </widget>
    <widget class="QMenu" name="menu_Notes">
     <property name="title">
@@ -297,7 +300,6 @@
     <addaction name="separator"/>
     <addaction name="actionManage_Note_Types"/>
     <addaction name="separator"/>
-    <addaction name="actionDelete"/>
    </widget>
    <widget class="QMenu" name="menuqt_accel_view">
     <property name="title">
@@ -312,7 +314,9 @@
      <addaction name="actionLayoutVertical"/>
      <addaction name="actionLayoutHorizontal"/>
     </widget>
-    <addaction name="action_toggle_mode"/>
+    <addaction name="action_show_notes"/>
+    <addaction name="action_show_cards"/>
+    <addaction name="action_show_reviews"/>
     <addaction name="separator"/>
     <addaction name="actionFullScreen"/>
     <addaction name="separator"/>
@@ -322,10 +326,16 @@
     <addaction name="separator"/>
     <addaction name="menuLayout"/>
    </widget>
+   <widget class="QMenu" name="menuqt_accel_reviews">
+    <property name="title">
+     <string>qt_accel_reviews</string>
+    </property>
+   </widget>
    <addaction name="menuEdit"/>
    <addaction name="menuqt_accel_view"/>
    <addaction name="menu_Notes"/>
    <addaction name="menu_Cards"/>
+   <addaction name="menuqt_accel_reviews"/>
    <addaction name="menuJump"/>
    <addaction name="menu_Help"/>
   </widget>
@@ -631,14 +641,6 @@
     <string notr="true">Ctrl+Alt+N</string>
    </property>
   </action>
-  <action name="action_toggle_mode">
-   <property name="text">
-    <string>browsing_toggle_showing_cards_notes</string>
-   </property>
-   <property name="shortcut">
-    <string notr="true">Ctrl+Alt+T</string>
-   </property>
-  </action>
   <action name="actionRedo">
    <property name="text">
     <string>qt_accel_redo</string>
@@ -735,9 +737,30 @@
     <string>qt_accel_layout_horizontal</string>
    </property>
   </action>
-  <action name="actionbrowsing_toggle_showing_cards_notes">
+  <action name="action_show_notes">
    <property name="text">
-    <string>browsing_toggle_showing_cards_notes</string>
+    <string>browsing_show_notes</string>
+   </property>
+  </action>
+  <action name="action_show_cards">
+   <property name="text">
+    <string>browsing_show_cards</string>
+   </property>
+   <property name="toolTip">
+    <string>browsing_show_cards</string>
+   </property>
+  </action>
+  <action name="action_show_reviews">
+   <property name="text">
+    <string>browsing_show_reviews</string>
+   </property>
+  </action>
+  <action name="action_accel_replay">
+   <property name="text">
+    <string>qt_accel_replay</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true">Ctrl+Shift+H</string>
    </property>
   </action>
   <action name="action_toggle_bury">

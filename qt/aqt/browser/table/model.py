@@ -13,6 +13,7 @@ from anki.collection import Collection
 from anki.consts import *
 from anki.errors import BackendError, NotFoundError
 from anki.notes import Note, NoteId
+from anki.revlog import RevlogEntry, RevlogId
 from aqt import gui_hooks
 from aqt.browser.table import Cell, CellRow, Column, ItemId, SearchContext
 from aqt.browser.table.state import ItemState
@@ -192,6 +193,14 @@ class DataModel(QAbstractTableModel):
             return nid_list[0]
         return None
 
+    def get_review_ids(self, indices: list[QModelIndex]) -> Sequence[RevlogId]:
+        return self._state.get_review_ids(self.get_items(indices))
+
+    def get_review_id(self, index: QModelIndex) -> RevlogId | None:
+        if rid_list := self._state.get_review_ids([self.get_item(index)]):
+            return rid_list[0]
+        return None
+
     # Get row numbers from items
 
     def get_item_row(self, item: ItemId) -> int | None:
@@ -234,12 +243,39 @@ class DataModel(QAbstractTableModel):
         except NotFoundError:
             return None
 
+    def get_review(self, index: QModelIndex) -> RevlogEntry | None:
+        """Try to return the indicated, possibly deleted note."""
+        if not index.isValid():
+            return None
+        try:
+            return self._state.get_review(self.get_item(index))
+        except NotFoundError:
+            return None
+
     # Table Interface
     ######################################################################
 
-    def toggle_state(self, context: SearchContext) -> ItemState:
+    # def toggle_state(self, context: SearchContext) -> ItemState:
+    #    self.beginResetModel()
+    #    self._state = self._state.toggle_state()
+    #    self.search(context)
+    #    return self._state
+
+    def switch_to_note_state(self, context: SearchContext) -> ItemState:
         self.beginResetModel()
-        self._state = self._state.toggle_state()
+        self._state = self._state.instantiate_note_state()
+        self.search(context)
+        return self._state
+
+    def switch_to_card_state(self, context: SearchContext) -> ItemState:
+        self.beginResetModel()
+        self._state = self._state.instantiate_card_state()
+        self.search(context)
+        return self._state
+
+    def switch_to_review_state(self, context: SearchContext) -> ItemState:
+        self.beginResetModel()
+        self._state = self._state.instantiate_review_state()
         self.search(context)
         return self._state
 

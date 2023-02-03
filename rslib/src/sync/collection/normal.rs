@@ -15,6 +15,7 @@ use crate::sync::collection::protocol::SyncProtocol;
 use crate::sync::collection::status::online_sync_status_check;
 use crate::sync::http_client::HttpSyncClient;
 use crate::sync::login::SyncAuth;
+use crate::version::VersionInfo;
 
 pub struct NormalSyncer<'a, F> {
     pub(in crate::sync) col: &'a mut Collection,
@@ -52,6 +53,8 @@ pub struct ClientSyncState {
     pub(in crate::sync) server_usn: Usn,
     // -1 in client case; used to locate pending entries
     pub(in crate::sync) pending_usn: Usn,
+
+    pub server_version: Option<VersionInfo>,
 }
 
 impl<F> NormalSyncer<'_, F>

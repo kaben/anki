@@ -1,10 +1,13 @@
-SELECT id,
-  cid,
-  usn,
-  ease,
-  cast(ivl AS integer),
-  cast(lastIvl AS integer),
-  factor,
-  time,
-  type
-FROM revlog
+SELECT revlog.id,
+  revlog.cid,
+  revlog.usn,
+  revlog.ease,
+  cast(revlog.ivl AS integer),
+  cast(revlog.lastIvl AS integer),
+  revlog.factor,
+  revlog.time,
+  revlog.type,
+  revlog.mod,
+  revlog.feedback,
+  revlog.tags
+FROM reviews AS revlog

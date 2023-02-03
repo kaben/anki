@@ -24,6 +24,11 @@ protobuf!(links, "links");
 protobuf!(media, "media");
 protobuf!(notes, "notes");
 protobuf!(notetypes, "notetypes");
+
+// The Revlog service has been added to support a version of Anki for
+// detailed review feedback.
+protobuf!(revlog, "revlog");
+
 protobuf!(scheduler, "scheduler");
 protobuf!(search, "search");
 protobuf!(stats, "stats");

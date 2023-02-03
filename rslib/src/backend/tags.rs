@@ -28,7 +28,10 @@ impl TagsService for Backend {
         })
     }
 
-    fn remove_tags(&self, tags: pb::generic::String) -> Result<pb::collection::OpChangesWithCount> {
+    fn remove_tags(
+        &self,
+        tags: pb::generic::String,
+    ) -> Result<pb::collection::OpChangesWithCounts> {
         self.with_col(|col| col.remove_tags(tags.val.as_str()).map(Into::into))
     }
 
@@ -46,10 +49,12 @@ impl TagsService for Backend {
         self.with_col(|col| col.tag_tree())
     }
 
+    // FIXME@kaben: changed to update revlog entries, but can't test until drag and
+    // drop works.
     fn reparent_tags(
         &self,
         input: pb::tags::ReparentTagsRequest,
-    ) -> Result<pb::collection::OpChangesWithCount> {
+    ) -> Result<pb::collection::OpChangesWithCounts> {
         let source_tags = input.tags;
         let target_tag = if input.new_parent.is_empty() {
             None
@@ -63,7 +68,7 @@ impl TagsService for Backend {
     fn rename_tags(
         &self,
         input: pb::tags::RenameTagsRequest,
-    ) -> Result<pb::collection::OpChangesWithCount> {
+    ) -> Result<pb::collection::OpChangesWithCounts> {
         self.with_col(|col| col.rename_tag(&input.current_prefix, &input.new_prefix))
             .map(Into::into)
     }

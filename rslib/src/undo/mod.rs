@@ -316,7 +316,11 @@ impl From<&[UndoableChange]> for StateChanges {
                 UndoableChange::Note(_) => out.note = true,
                 UndoableChange::Deck(_) => out.deck = true,
                 UndoableChange::Tag(_) => out.tag = true,
-                UndoableChange::Revlog(_) => {}
+                // NOTE@kaben:
+                // This seems to be critical to:
+                // - Undo
+                // - Registering changes in the UI
+                UndoableChange::Revlog(_) => out.revlog_entry = true,
                 UndoableChange::Queue(_) => {}
                 UndoableChange::Config(_) => out.config = true,
                 UndoableChange::DeckConfig(_) => out.deck_config = true,

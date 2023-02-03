@@ -35,11 +35,11 @@ impl StatsService for Backend {
 impl From<RevlogReviewKind> for i32 {
     fn from(kind: RevlogReviewKind) -> Self {
         (match kind {
-            RevlogReviewKind::Learning => pb::stats::revlog_entry::ReviewKind::Learning,
-            RevlogReviewKind::Review => pb::stats::revlog_entry::ReviewKind::Review,
-            RevlogReviewKind::Relearning => pb::stats::revlog_entry::ReviewKind::Relearning,
-            RevlogReviewKind::Filtered => pb::stats::revlog_entry::ReviewKind::Filtered,
-            RevlogReviewKind::Manual => pb::stats::revlog_entry::ReviewKind::Manual,
+            RevlogReviewKind::Learning => pb::revlog::revlog_entry::ReviewKind::Learning,
+            RevlogReviewKind::Review => pb::revlog::revlog_entry::ReviewKind::Review,
+            RevlogReviewKind::Relearning => pb::revlog::revlog_entry::ReviewKind::Relearning,
+            RevlogReviewKind::Filtered => pb::revlog::revlog_entry::ReviewKind::Filtered,
+            RevlogReviewKind::Manual => pb::revlog::revlog_entry::ReviewKind::Manual,
         }) as i32
     }
 }

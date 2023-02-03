@@ -45,6 +45,19 @@ impl SearchService for Backend {
         })
     }
 
+    fn search_reviews(
+        &self,
+        input: pb::search::SearchRequest,
+    ) -> Result<pb::search::SearchResponse> {
+        self.with_col(|col| {
+            let order = input.order.unwrap_or_default().value.into();
+            let rids = col.search_reviews(&input.search, order)?;
+            Ok(pb::search::SearchResponse {
+                ids: rids.into_iter().map(|v| v.0).collect(),
+            })
+        })
+    }
+
     fn join_search_nodes(
         &self,
         input: pb::search::JoinSearchNodesRequest,

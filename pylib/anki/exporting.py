@@ -240,11 +240,18 @@ class AnkiExporter(Exporter):
         )
         # models used by the notes
         mids = self.dst.db.list("select distinct mid from notes where id in " + strnids)
+
         # card history and revlog
+
+        # FIXME@kaben: This breaks compatibility with standard Anki due to extra columns.
         if self.includeSched:
-            data = self.src.db.all("select * from revlog where cid in " + ids2str(cids))
+            data = self.src.db.all(
+                "select id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags from reviews AS revlog where cid in "
+                + ids2str(cids)
+            )
             self.dst.db.executemany(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)", data
+                "insert into reviews AS revlog (id,cid,mod,usn,ease,ivl,lastIvl,factor,time,type,feedback,tags) values (?,?,?,?,?,?,?,?,?,?,?,?)",
+                data,
             )
         else:
             # need to reset card state

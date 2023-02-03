@@ -13,13 +13,14 @@ from anki.cards import CardId
 from anki.collection import BrowserColumns as Columns
 from anki.collection import BrowserRow
 from anki.notes import NoteId
+from anki.revlog import RevlogId
 from aqt import colors
 from aqt.qt import QColor
 from aqt.utils import tr
 
 Column = Columns.Column
-ItemId = Union[CardId, NoteId]
-ItemList = Union[Sequence[CardId], Sequence[NoteId]]
+ItemId = Union[CardId, NoteId, RevlogId]
+ItemList = Union[Sequence[CardId], Sequence[NoteId], Sequence[RevlogId]]
 
 
 @dataclass

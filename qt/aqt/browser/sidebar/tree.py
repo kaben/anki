@@ -11,7 +11,7 @@ import aqt.operations
 from anki.collection import (
     Config,
     OpChanges,
-    OpChangesWithCount,
+    OpChangesWithCounts,
     SearchJoiner,
     SearchNode,
 )
@@ -742,7 +742,11 @@ class SidebarTreeView(QTreeView):
                 item = SidebarItem(
                     name=node.name,
                     icon=icon,
-                    search_node=SearchNode(tag=head + node.name),
+                    # FIXME@kaben: remove.
+                    # search_node=SearchNode(tag=head + node.name),
+                    search_node=SearchNode(
+                        parsable_text=f"tag:{head+node.name} OR rtag:{head+node.name}"
+                    ),
                     on_expanded=toggle_expand(node),
                     expanded=not node.collapsed,
                     item_type=SidebarItemType.TAG,
@@ -1028,9 +1032,14 @@ class SidebarTreeView(QTreeView):
 
         if item.item_type is SidebarItemType.TAG:
 
-            def success(out: OpChangesWithCount) -> None:
-                if out.count:
-                    tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
+            def success(out: OpChangesWithCounts) -> None:
+                if out.counts[0] or out.counts[1]:
+                    tooltip(
+                        tr.browsing_notes_and_reviews_updated(
+                            note_count=out.counts[0], review_count=out.counts[1]
+                        ),
+                        parent=self,
+                    )
                 else:
                     showInfo(tr.browsing_tag_rename_warning_empty(), parent=self)
 
@@ -1106,9 +1115,14 @@ class SidebarTreeView(QTreeView):
         item.name = new_name
         item.full_name = new_full_name
 
-        def success(out: OpChangesWithCount) -> None:
-            if out.count:
-                tooltip(tr.browsing_notes_updated(count=out.count), parent=self)
+        def success(out: OpChangesWithCounts) -> None:
+            if out.counts[0] or out.counts[1]:
+                tooltip(
+                    tr.browsing_notes_and_reviews_updated(
+                        note_count=out.counts[0], review_count=out.counts[1]
+                    ),
+                    parent=self,
+                )
             else:
                 # revert renaming of sidebar item
                 item.full_name = old_full_name

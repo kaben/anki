@@ -12,6 +12,7 @@ use crate::sync::collection::start::ServerSyncState;
 use crate::sync::error::HttpResult;
 use crate::sync::error::OrHttpErr;
 use crate::sync::http_server::media_manager::ServerMediaManager;
+use crate::version::VersionInfo;
 
 pub(in crate::sync) struct User {
     pub name: String,
@@ -72,9 +73,16 @@ impl User {
         }
     }
 
-    pub(crate) fn start_new_sync(&mut self, skey: &str) -> HttpResult<()> {
+    pub(crate) fn start_new_sync(
+        &mut self,
+        skey: &str,
+        client_version: Option<VersionInfo>,
+    ) -> HttpResult<()> {
         self.abort_stateful_sync_if_active();
-        self.sync_state = Some(ServerSyncState::new(skey));
+        self.sync_state = Some(ServerSyncState::new_with_client_version(
+            skey,
+            client_version,
+        ));
         Ok(())
     }
 

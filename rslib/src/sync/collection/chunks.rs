@@ -12,7 +12,9 @@ use crate::card::CardQueue;
 use crate::card::CardType;
 use crate::notes::Note;
 use crate::prelude::*;
-use crate::revlog::RevlogEntry;
+use crate::revlog::RevlogEntry as ExtendedRevlogEntry;
+use crate::revlog::RevlogReviewKind;
+use crate::serde::default_on_invalid;
 use crate::serde::deserialize_int_from_number;
 use crate::storage::card::data::card_data_string;
 use crate::storage::card::data::CardData;
@@ -25,7 +27,10 @@ use crate::sync::collection::start::ServerSyncState;
 use crate::sync::request::IntoSyncRequest;
 use crate::tags::join_tags;
 use crate::tags::split_tags;
+use crate::version::VersionInfo;
+use crate::version::ANKIMATH_VARIANT;
 
+#[derive(Debug)]
 pub(in crate::sync) struct ChunkableIds {
     revlog: Vec<RevlogId>,
     cards: Vec<CardId>,
@@ -38,6 +43,18 @@ pub struct Chunk {
     pub done: bool,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub revlog: Vec<RevlogEntry>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub cards: Vec<CardEntry>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub notes: Vec<NoteEntry>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct ExtendedChunk {
+    #[serde(default)]
+    pub done: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub extended_revlog: Vec<ExtendedRevlogEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub cards: Vec<CardEntry>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
@@ -87,6 +104,32 @@ pub struct CardEntry {
     pub data: String,
 }
 
+#[derive(Serialize_tuple, Deserialize, Debug, Default, PartialEq, Eq)]
+pub struct RevlogEntry {
+    pub id: RevlogId,
+    pub cid: CardId,
+    pub usn: Usn,
+    /// - In the V1 scheduler, 3 represents easy in the learning case.
+    /// - 0 represents manual rescheduling.
+    #[serde(rename = "ease")]
+    pub button_chosen: u8,
+    /// Positive values are in days, negative values in seconds.
+    #[serde(rename = "ivl", deserialize_with = "deserialize_int_from_number")]
+    pub interval: i32,
+    /// Positive values are in days, negative values in seconds.
+    #[serde(rename = "lastIvl", deserialize_with = "deserialize_int_from_number")]
+    pub last_interval: i32,
+    /// Card's ease after answering, stored as 10x the %, eg 2500 represents
+    /// 250%.
+    #[serde(rename = "factor", deserialize_with = "deserialize_int_from_number")]
+    pub ease_factor: u32,
+    /// Amount of milliseconds taken to answer the card.
+    #[serde(rename = "time", deserialize_with = "deserialize_int_from_number")]
+    pub taken_millis: u32,
+    #[serde(rename = "type", default, deserialize_with = "default_on_invalid")]
+    pub review_kind: RevlogReviewKind,
+}
+
 impl<F> NormalSyncer<'_, F>
 where
     F: FnMut(NormalSyncProgress, bool),
@@ -95,27 +138,72 @@ where
         &mut self,
         state: &ClientSyncState,
     ) -> Result<()> {
-        loop {
-            let chunk = self.server.chunk(EmptyInput::request()).await?.json()?;
+        let mut found_ankimath_server: bool = false;
+        if state.server_version.is_some() {
+            // FIXME@kaben: remove debugging output below.
+            println!("***** (chunks) NormalSyncer.process_chunks_from_server(): found server variant info.");
+            if state.server_version.as_ref().unwrap().variant == ANKIMATH_VARIANT {
+                println!("***** (chunks) NormalSyncer.process_chunks_from_server(): found AnkiMath server variant.");
+                found_ankimath_server = true;
+            } else {
+                println!("***** (chunks) NormalSyncer.process_chunks_from_server(): DID NOT find AnkiMath server variant.");
+            }
+        }
+        if found_ankimath_server {
+            println!("***** (chunks) NormalSyncer.process_chunks_from_server(): processing extended chunks.");
+            loop {
+                let extended_chunk = self
+                    .server
+                    .extended_chunk(EmptyInput::request())
+                    .await?
+                    .json()?;
 
-            debug!(
-                done = chunk.done,
-                cards = chunk.cards.len(),
-                notes = chunk.notes.len(),
-                revlog = chunk.revlog.len(),
-                "received"
-            );
+                debug!(
+                    done = extended_chunk.done,
+                    cards = extended_chunk.cards.len(),
+                    notes = extended_chunk.notes.len(),
+                    revlog = extended_chunk.extended_revlog.len(),
+                    "received"
+                );
 
-            self.progress.remote_update +=
-                chunk.cards.len() + chunk.notes.len() + chunk.revlog.len();
+                self.progress.remote_update += extended_chunk.cards.len()
+                    + extended_chunk.notes.len()
+                    + extended_chunk.extended_revlog.len();
 
-            let done = chunk.done;
-            self.col.apply_chunk(chunk, state.pending_usn)?;
+                let done = extended_chunk.done;
+                self.col
+                    .apply_extended_chunk(extended_chunk, state.pending_usn)?;
 
-            self.fire_progress_cb(true);
+                self.fire_progress_cb(true);
 
-            if done {
-                return Ok(());
+                if done {
+                    return Ok(());
+                }
+            }
+        } else {
+            println!("***** (chunks) NormalSyncer.process_chunks_from_server(): processing standard chunks.");
+            loop {
+                let chunk = self.server.chunk(EmptyInput::request()).await?.json()?;
+
+                debug!(
+                    done = chunk.done,
+                    cards = chunk.cards.len(),
+                    notes = chunk.notes.len(),
+                    revlog = chunk.revlog.len(),
+                    "received"
+                );
+
+                self.progress.remote_update +=
+                    chunk.cards.len() + chunk.notes.len() + chunk.revlog.len();
+
+                let done = chunk.done;
+                self.col.apply_chunk(chunk, state.pending_usn)?;
+
+                self.fire_progress_cb(true);
+
+                if done {
+                    return Ok(());
+                }
             }
         }
     }
@@ -124,31 +212,83 @@ where
         &mut self,
         state: &ClientSyncState,
     ) -> Result<()> {
+        let mut found_ankimath_server: bool = false;
+        if state.server_version.is_some() {
+            // FIXME@kaben: remove debugging output below.
+            println!(
+                "***** (chunks) NormalSyncer.send_chunks_to_server(): found server variant info."
+            );
+            if state.server_version.as_ref().unwrap().variant == ANKIMATH_VARIANT {
+                println!("***** (chunks) NormalSyncer.send_chunks_to_server(): found AnkiMath server variant.");
+                found_ankimath_server = true;
+            } else {
+                println!("***** (chunks) NormalSyncer.send_chunks_to_server(): DID NOT find AnkiMath server variant.");
+            }
+        }
         let mut ids = self.col.get_chunkable_ids(state.pending_usn)?;
 
-        loop {
-            let chunk: Chunk = self.col.get_chunk(&mut ids, Some(state.server_usn))?;
-            let done = chunk.done;
-
-            debug!(
-                done = chunk.done,
-                cards = chunk.cards.len(),
-                notes = chunk.notes.len(),
-                revlog = chunk.revlog.len(),
-                "sending"
+        if found_ankimath_server {
+            println!(
+                "***** (chunks) NormalSyncer.send_chunks_to_server(): sending extended chunks."
             );
+            loop {
+                let extended_chunk: ExtendedChunk = self
+                    .col
+                    .get_extended_chunk(&mut ids, Some(state.server_usn))?;
+                let done = extended_chunk.done;
 
-            self.progress.local_update +=
-                chunk.cards.len() + chunk.notes.len() + chunk.revlog.len();
+                debug!(
+                    done = extended_chunk.done,
+                    cards = extended_chunk.cards.len(),
+                    notes = extended_chunk.notes.len(),
+                    revlog = extended_chunk.extended_revlog.len(),
+                    "sending"
+                );
 
-            self.server
-                .apply_chunk(ApplyChunkRequest { chunk }.try_into_sync_request()?)
-                .await?;
+                self.progress.local_update += extended_chunk.cards.len()
+                    + extended_chunk.notes.len()
+                    + extended_chunk.extended_revlog.len();
 
-            self.fire_progress_cb(true);
+                self.server
+                    .apply_extended_chunk(
+                        ApplyExtendedChunkRequest { extended_chunk }.try_into_sync_request()?,
+                    )
+                    .await?;
 
-            if done {
-                return Ok(());
+                self.fire_progress_cb(true);
+
+                if done {
+                    return Ok(());
+                }
+            }
+        } else {
+            println!(
+                "***** (chunks) NormalSyncer.send_chunks_to_server(): sending standard chunks."
+            );
+            loop {
+                let chunk: Chunk = self.col.get_chunk(&mut ids, Some(state.server_usn))?;
+                let done = chunk.done;
+
+                debug!(
+                    done = chunk.done,
+                    cards = chunk.cards.len(),
+                    notes = chunk.notes.len(),
+                    revlog = chunk.revlog.len(),
+                    "sending"
+                );
+
+                self.progress.local_update +=
+                    chunk.cards.len() + chunk.notes.len() + chunk.revlog.len();
+
+                self.server
+                    .apply_chunk(ApplyChunkRequest { chunk }.try_into_sync_request()?)
+                    .await?;
+
+                self.fire_progress_cb(true);
+
+                if done {
+                    return Ok(());
+                }
             }
         }
     }
@@ -162,15 +302,70 @@ impl Collection {
     /// If the provided objects are not modified locally, the USN inside
     /// the individual objects is used.
     pub(in crate::sync) fn apply_chunk(&mut self, chunk: Chunk, pending_usn: Usn) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
+        println!("***** (chunks) Collection.apply_chunk()");
         self.merge_revlog(chunk.revlog)?;
         self.merge_cards(chunk.cards, pending_usn)?;
         self.merge_notes(chunk.notes, pending_usn)
     }
 
+    /// pending_usn is used to decide whether the local objects are newer.
+    /// If the provided objects are not modified locally, the USN inside
+    /// the individual objects is used.
+    ///
+    /// This is a modified version of apply_chunk() above, meant for use
+    /// AnkiMath sync servers. It syncs the extended version of RevlogEntry
+    /// used in AnkiMath, whereas apply_chunk() is used to sync with
+    /// standard Anki sync servers.
+    pub(in crate::sync) fn apply_extended_chunk(
+        &mut self,
+        extended_chunk: ExtendedChunk,
+        pending_usn: Usn,
+    ) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
+        println!("***** (chunks) Collection.apply_extended_chunk()");
+        self.merge_extended_revlog(extended_chunk.extended_revlog, pending_usn)?;
+        self.merge_cards(extended_chunk.cards, pending_usn)?;
+        self.merge_notes(extended_chunk.notes, pending_usn)
+    }
+
     fn merge_revlog(&self, entries: Vec<RevlogEntry>) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
+        println!("XXXXX (chunks) Collection.merge_revlog()");
         for entry in entries {
-            self.storage.add_revlog_entry(&entry, false)?;
+            self.storage.add_revlog_entry(&entry.into(), false)?;
         }
+        Ok(())
+    }
+
+    fn merge_extended_revlog(
+        &self,
+        entries: Vec<ExtendedRevlogEntry>,
+        pending_usn: Usn,
+    ) -> Result<()> {
+        // FIXME@kaben: remove debugging output below.
+        println!("XXXXX (chunks) Collection.merge_extended_revlog()");
+        for entry in entries {
+            println!("XXXXX (chunks) Collection.merge_extended_revlog(): entry: {entry:?}");
+            self.add_or_update_extended_revlog_if_newer(entry, pending_usn)?;
+        }
+        Ok(())
+    }
+
+    fn add_or_update_extended_revlog_if_newer(
+        &self,
+        entry: ExtendedRevlogEntry,
+        pending_usn: Usn,
+    ) -> Result<()> {
+        if let Some(existing_review) = self.storage.get_revlog_entry(entry.id)? {
+            if !existing_review.usn.is_pending_sync(pending_usn)
+                || existing_review.mtime < entry.mtime
+            {
+                self.storage.update_revlog_entry(&entry)?;
+            }
+        } else {
+            self.storage.add_extended_revlog_entry(&entry, false)?;
+        };
         Ok(())
     }
 
@@ -235,6 +430,8 @@ impl Collection {
         ids: &mut ChunkableIds,
         server_usn_if_client: Option<Usn>,
     ) -> Result<Chunk> {
+        // FIXME@kaben: remove debugging output below.
+        println!("XXXXX (chunks) Collection.get_chunk()");
         // get a bunch of IDs
         let mut limit = CHUNK_SIZE as i32;
         let mut revlog_ids = vec![];
@@ -281,7 +478,7 @@ impl Collection {
                 self.storage.get_revlog_entry(id).map(|e| {
                     let mut e = e.unwrap();
                     e.usn = server_usn_if_client.unwrap_or(e.usn);
-                    e
+                    e.into()
                 })
             })
             .collect::<Result<_>>()?;
@@ -307,6 +504,128 @@ impl Collection {
             .collect::<Result<_>>()?;
 
         Ok(chunk)
+    }
+
+    /// Fetch a chunk of ids from `ids`, returning the referenced objects.
+    ///
+    /// This is a modified version of get_chunk() above, meant for use AnkiMath
+    /// sync servers. It syncs the extended version of RevlogEntry used in
+    /// AnkiMath, whereas get_chunk() is used to sync with standard Anki
+    /// sync servers.
+    pub(in crate::sync) fn get_extended_chunk(
+        &self,
+        ids: &mut ChunkableIds,
+        server_usn_if_client: Option<Usn>,
+    ) -> Result<ExtendedChunk> {
+        // FIXME@kaben: remove debugging output below.
+        println!("XXXXX (chunks) Collection.get_extended_chunk()");
+        // get a bunch of IDs
+        let mut limit = CHUNK_SIZE as i32;
+        let mut revlog_ids = vec![];
+        let mut card_ids = vec![];
+        let mut note_ids = vec![];
+        let mut extended_chunk = ExtendedChunk::default();
+        while limit > 0 {
+            let last_limit = limit;
+            if let Some(id) = ids.revlog.pop() {
+                revlog_ids.push(id);
+                limit -= 1;
+            }
+            if let Some(id) = ids.notes.pop() {
+                note_ids.push(id);
+                limit -= 1;
+            }
+            if let Some(id) = ids.cards.pop() {
+                card_ids.push(id);
+                limit -= 1;
+            }
+            if limit == last_limit {
+                // all empty
+                break;
+            }
+        }
+        if limit > 0 {
+            extended_chunk.done = true;
+        }
+
+        // remove pending status
+        if !self.server {
+            self.storage
+                .maybe_update_object_usns("revlog", &revlog_ids, server_usn_if_client)?;
+            self.storage
+                .maybe_update_object_usns("cards", &card_ids, server_usn_if_client)?;
+            self.storage
+                .maybe_update_object_usns("notes", &note_ids, server_usn_if_client)?;
+        }
+
+        // the fetch associated objects, and return
+        extended_chunk.extended_revlog = revlog_ids
+            .into_iter()
+            .map(|id| {
+                self.storage.get_revlog_entry(id).map(|e| {
+                    let mut e = e.unwrap();
+                    e.usn = server_usn_if_client.unwrap_or(e.usn);
+                    // FIXME@kaben: remove debugging output.
+                    println!("XXXXX (chunks) Collection.get_extended_chunk(): revlog e: {e:?}");
+                    e
+                })
+            })
+            .collect::<Result<_>>()?;
+        extended_chunk.cards = card_ids
+            .into_iter()
+            .map(|id| {
+                self.storage.get_card(id).map(|e| {
+                    let mut e: CardEntry = e.unwrap().into();
+                    e.usn = server_usn_if_client.unwrap_or(e.usn);
+                    e
+                })
+            })
+            .collect::<Result<_>>()?;
+        extended_chunk.notes = note_ids
+            .into_iter()
+            .map(|id| {
+                self.storage.get_note(id).map(|e| {
+                    let mut e: NoteEntry = e.unwrap().into();
+                    e.usn = server_usn_if_client.unwrap_or(e.usn);
+                    e
+                })
+            })
+            .collect::<Result<_>>()?;
+
+        Ok(extended_chunk)
+    }
+}
+
+impl From<ExtendedRevlogEntry> for RevlogEntry {
+    fn from(e: ExtendedRevlogEntry) -> Self {
+        RevlogEntry {
+            id: e.id,
+            cid: e.cid,
+            usn: e.usn,
+            button_chosen: e.button_chosen,
+            interval: e.interval,
+            last_interval: e.last_interval,
+            ease_factor: e.ease_factor,
+            taken_millis: e.taken_millis,
+            review_kind: e.review_kind,
+        }
+    }
+}
+
+impl From<RevlogEntry> for ExtendedRevlogEntry {
+    fn from(e: RevlogEntry) -> Self {
+        ExtendedRevlogEntry {
+            id: e.id,
+            cid: e.cid,
+            usn: e.usn,
+            button_chosen: e.button_chosen,
+            interval: e.interval,
+            last_interval: e.last_interval,
+            ease_factor: e.ease_factor,
+            taken_millis: e.taken_millis,
+            review_kind: e.review_kind,
+            ..Default::default()
+        }
     }
 }
 
@@ -400,19 +719,71 @@ impl From<Note> for NoteEntry {
     }
 }
 
-pub fn server_chunk(col: &mut Collection, state: &mut ServerSyncState) -> Result<Chunk> {
+pub fn server_chunk(
+    col: &mut Collection,
+    state: &mut ServerSyncState,
+    client_version_info: Option<VersionInfo>,
+) -> Result<Chunk> {
+    // FIXME@kaben: remove debugging output below.
+    println!(
+        "***** (chunks) server_chunk(): client_version_info: {:?}",
+        client_version_info
+    );
     if state.server_chunk_ids.is_none() {
         state.server_chunk_ids = Some(col.get_chunkable_ids(state.client_usn)?);
     }
     col.get_chunk(state.server_chunk_ids.as_mut().unwrap(), None)
 }
 
+// This is a modified version of server_chunk() above, meant for use AnkiMath
+// sync servers. It syncs the extended version of RevlogEntry used in AnkiMath,
+// whereas server_chunk() is used to sync with standard Anki sync servers.
+pub fn server_extended_chunk(
+    col: &mut Collection,
+    state: &mut ServerSyncState,
+    client_version_info: Option<VersionInfo>,
+) -> Result<ExtendedChunk> {
+    // FIXME@kaben: remove debugging output below.
+    println!(
+        "***** (chunks) server_extended_chunk(): client_version_info: {:?}",
+        client_version_info
+    );
+    if state.server_chunk_ids.is_none() {
+        state.server_chunk_ids = Some(col.get_chunkable_ids(state.client_usn)?);
+    }
+    col.get_extended_chunk(state.server_chunk_ids.as_mut().unwrap(), None)
+}
+
 pub fn server_apply_chunk(
     req: ApplyChunkRequest,
     col: &mut Collection,
     state: &mut ServerSyncState,
+    client_version_info: Option<VersionInfo>,
 ) -> Result<()> {
+    // FIXME@kaben: remove debugging output below.
+    println!(
+        "***** (chunks) server_apply_chunk(): client_version_info: {:?}",
+        client_version_info
+    );
     col.apply_chunk(req.chunk, state.client_usn)
+}
+
+// This is a modified version of server_apply_chunk() above, meant for use
+// AnkiMath sync servers. It syncs the extended version of RevlogEntry used in
+// AnkiMath, whereas server_apply_chunk() is used to sync with standard Anki
+// sync servers.
+pub fn server_apply_extended_chunk(
+    req: ApplyExtendedChunkRequest,
+    col: &mut Collection,
+    state: &mut ServerSyncState,
+    client_version_info: Option<VersionInfo>,
+) -> Result<()> {
+    // FIXME@kaben: remove debugging output below.
+    println!(
+        "***** (chunks) server_apply_extended_chunk(): client_version_info: {:?}",
+        client_version_info
+    );
+    col.apply_extended_chunk(req.extended_chunk, state.client_usn)
 }
 
 impl Usn {
@@ -430,4 +801,9 @@ pub const CHUNK_SIZE: usize = 250;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplyChunkRequest {
     pub chunk: Chunk,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ApplyExtendedChunkRequest {
+    pub extended_chunk: ExtendedChunk,
 }

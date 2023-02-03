@@ -4,7 +4,8 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 -->
 <script lang="ts">
     import * as tr2 from "@tslib/ftl";
-    import { Stats } from "@tslib/proto";
+    import type { Stats } from "@tslib/proto";
+    import { Revlog } from "@tslib/proto";
     import { timeSpan, Timestamp } from "@tslib/time";
 
     type StatsRevlogEntry = Stats.CardStatsResponse.StatsRevlogEntry;
@@ -13,11 +14,11 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     function reviewKindClass(entry: StatsRevlogEntry): string {
         switch (entry.reviewKind) {
-            case Stats.RevlogEntry.ReviewKind.LEARNING:
+            case Revlog.RevlogEntry.ReviewKind.LEARNING:
                 return "revlog-learn";
-            case Stats.RevlogEntry.ReviewKind.REVIEW:
+            case Revlog.RevlogEntry.ReviewKind.REVIEW:
                 return "revlog-review";
-            case Stats.RevlogEntry.ReviewKind.RELEARNING:
+            case Revlog.RevlogEntry.ReviewKind.RELEARNING:
                 return "revlog-relearn";
         }
         return "";
@@ -25,15 +26,15 @@ License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
     function reviewKindLabel(entry: StatsRevlogEntry): string {
         switch (entry.reviewKind) {
-            case Stats.RevlogEntry.ReviewKind.LEARNING:
+            case Revlog.RevlogEntry.ReviewKind.LEARNING:
                 return tr2.cardStatsReviewLogTypeLearn();
-            case Stats.RevlogEntry.ReviewKind.REVIEW:
+            case Revlog.RevlogEntry.ReviewKind.REVIEW:
                 return tr2.cardStatsReviewLogTypeReview();
-            case Stats.RevlogEntry.ReviewKind.RELEARNING:
+            case Revlog.RevlogEntry.ReviewKind.RELEARNING:
                 return tr2.cardStatsReviewLogTypeRelearn();
-            case Stats.RevlogEntry.ReviewKind.FILTERED:
+            case Revlog.RevlogEntry.ReviewKind.FILTERED:
                 return tr2.cardStatsReviewLogTypeFiltered();
-            case Stats.RevlogEntry.ReviewKind.MANUAL:
+            case Revlog.RevlogEntry.ReviewKind.MANUAL:
                 return tr2.cardStatsReviewLogTypeManual();
         }
     }

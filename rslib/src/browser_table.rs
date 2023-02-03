@@ -12,10 +12,12 @@ use strum::IntoEnumIterator;
 use crate::card::CardQueue;
 use crate::card::CardType;
 use crate::card_rendering::prettify_av_tags;
+use crate::config::StringKey;
 use crate::notetype::CardTemplate;
 use crate::notetype::NotetypeKind;
 use crate::pb;
 use crate::prelude::*;
+use crate::revlog::RevlogReviewKind;
 use crate::scheduler::timespan::time_span;
 use crate::scheduler::timing::SchedTimingToday;
 use crate::template::RenderedNode;
@@ -51,6 +53,29 @@ pub enum Column {
     SortField,
     #[strum(serialize = "noteTags")]
     Tags,
+    NoteId,
+    CardId,
+    RevlogId,
+    RevlogMod,
+    #[strum(serialize = "reviewedAt")]
+    ReviewedAt,
+    #[strum(serialize = "reviewNotes")]
+    ReviewFeedback,
+    #[strum(serialize = "reviewTags")]
+    ReviewTags,
+    #[strum(serialize = "reviewButton")]
+    ReviewButton,
+    #[strum(serialize = "reviewLastIvl")]
+    ReviewLastInterval,
+    #[strum(serialize = "reviewType")]
+    ReviewType,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Display, EnumIter, EnumString)]
+pub enum BrowserMode {
+    Notes,
+    Cards,
+    Reviews,
 }
 
 impl Default for Column {
@@ -60,7 +85,13 @@ impl Default for Column {
 }
 
 struct RowContext {
-    notes_mode: bool,
+    //FIXME@kaben: remove.
+    //notes_mode: bool,
+    browser_mode: BrowserMode,
+
+    // `revlog_entries` added to support version of Anki for detailed review feedback.
+    revlog_entries: Vec<RevlogEntry>,
+
     cards: Vec<Card>,
     note: Note,
     notetype: Arc<Notetype>,
@@ -149,6 +180,16 @@ impl Column {
             Self::Reps => tr.scheduling_reviews(),
             Self::SortField => tr.browsing_sort_field(),
             Self::Tags => tr.editing_tags(),
+            Self::NoteId => tr.card_stats_note_id(),
+            Self::CardId => tr.card_stats_card_id(),
+            Self::RevlogId => tr.revlog_id(),
+            Self::RevlogMod => tr.revlog_modified(),
+            Self::ReviewedAt => tr.reviewed_at(),
+            Self::ReviewFeedback => tr.review_feedback(),
+            Self::ReviewTags => tr.review_tags(),
+            Self::ReviewButton => tr.review_button(),
+            Self::ReviewLastInterval => tr.review_last_interval(),
+            Self::ReviewType => tr.card_stats_review_log_type(),
         }
         .into()
     }
@@ -189,10 +230,14 @@ impl Column {
     pub fn default_order(self) -> pb::search::browser_columns::Sorting {
         use pb::search::browser_columns::Sorting;
         match self {
-            Column::Question | Column::Answer | Column::Custom => Sorting::None,
-            Column::SortField | Column::Tags | Column::Notetype | Column::Deck => {
-                Sorting::Ascending
+            Column::Question | Column::Answer | Column::ReviewFeedback | Column::Custom => {
+                Sorting::None
             }
+            Column::SortField
+            | Column::Tags
+            | Column::ReviewTags
+            | Column::Notetype
+            | Column::Deck => Sorting::Ascending,
             Column::CardMod
             | Column::Cards
             | Column::Due
@@ -201,6 +246,14 @@ impl Column {
             | Column::Interval
             | Column::NoteCreation
             | Column::NoteMod
+            | Column::NoteId
+            | Column::CardId
+            | Column::RevlogId
+            | Column::RevlogMod
+            | Column::ReviewedAt
+            | Column::ReviewButton
+            | Column::ReviewLastInterval
+            | Column::ReviewType
             | Column::Reps => Sorting::Descending,
         }
     }
@@ -235,14 +288,19 @@ impl Collection {
     }
 
     pub fn browser_row_for_id(&mut self, id: i64) -> Result<pb::search::BrowserRow> {
-        let notes_mode = self.get_config_bool(BoolKey::BrowserTableShowNotesMode);
+        //FIXME@kaben: remove.
+        //let notes_mode = self.get_config_bool(BoolKey::BrowserTableShowNotesMode);
+        let mode: &String = &self.get_config_string(StringKey::BrowserTableMode);
         let columns = Arc::clone(
             self.state
                 .active_browser_columns
                 .as_ref()
                 .or_invalid("Active browser columns not set.")?,
         );
-        RowContext::new(self, id, notes_mode, card_render_required(&columns))?.browser_row(&columns)
+        //FIXME@kaben: remove.
+        //RowContext::new(self, id, notes_mode,
+        // card_render_required(&columns))?.browser_row(&columns)
+        RowContext::new(self, id, mode, card_render_required(&columns))?.browser_row(&columns)
     }
 
     fn get_note_maybe_with_fields(&self, id: NoteId, _with_fields: bool) -> Result<Note> {
@@ -308,28 +366,54 @@ impl RowContext {
     fn new(
         col: &mut Collection,
         id: i64,
-        notes_mode: bool,
+        //FIXME@kaben: remove.
+        //notes_mode: bool,
+        mode: &str,
         with_card_render: bool,
     ) -> Result<Self> {
         let cards;
         let note;
-        if notes_mode {
-            note = col
-                .get_note_maybe_with_fields(NoteId(id), with_card_render)
-                .map_err(|e| match e {
-                    AnkiError::NotFound { .. } => AnkiError::Deleted,
-                    _ => e,
-                })?;
-            cards = col.storage.all_cards_of_note(note.id)?;
-            if cards.is_empty() {
-                return Err(AnkiError::DatabaseCheckRequired);
+        let revlog_entries;
+
+        let browser_mode: BrowserMode = match mode {
+            "N" => BrowserMode::Notes,
+            "C" => BrowserMode::Cards,
+            "R" => BrowserMode::Reviews,
+            &_ => BrowserMode::Cards,
+        };
+        match browser_mode {
+            BrowserMode::Notes => {
+                note = col
+                    .get_note_maybe_with_fields(NoteId(id), with_card_render)
+                    .map_err(|e| match e {
+                        AnkiError::NotFound { .. } => AnkiError::Deleted,
+                        _ => e,
+                    })?;
+                cards = col.storage.all_cards_of_note(note.id)?;
+                if cards.is_empty() {
+                    return Err(AnkiError::DatabaseCheckRequired);
+                }
+                revlog_entries = col.storage.get_revlog_entries_for_note(note.id)?;
             }
-        } else {
-            cards = vec![col
-                .storage
-                .get_card(CardId(id))?
-                .ok_or(AnkiError::Deleted)?];
-            note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
+            BrowserMode::Cards => {
+                cards = vec![col
+                    .storage
+                    .get_card(CardId(id))?
+                    .ok_or(AnkiError::Deleted)?];
+                note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
+                revlog_entries = col.storage.get_revlog_entries_for_card(cards[0].id)?;
+            }
+            BrowserMode::Reviews => {
+                revlog_entries = vec![col
+                    .storage
+                    .get_revlog_entry(RevlogId(id))?
+                    .ok_or(AnkiError::Deleted)?];
+                cards = vec![col
+                    .storage
+                    .get_card(revlog_entries[0].cid)?
+                    .ok_or(AnkiError::Deleted)?];
+                note = col.get_note_maybe_with_fields(cards[0].note_id, with_card_render)?;
+            }
         }
         let notetype = col
             .get_notetype(note.notetype_id)?
@@ -353,7 +437,10 @@ impl RowContext {
         };
 
         Ok(RowContext {
-            notes_mode,
+            //FIXME@kaben: remove.
+            //notes_mode,
+            browser_mode,
+            revlog_entries,
             cards,
             note,
             notetype,
@@ -402,6 +489,16 @@ impl RowContext {
             Column::Tags => self.note.tags.join(" "),
             Column::Notetype => self.notetype.name.to_owned(),
             Column::Custom => "".to_string(),
+            Column::NoteId => self.note_id_str(),
+            Column::CardId => self.card_id_str(),
+            Column::RevlogId => self.revlog_id_str(),
+            Column::RevlogMod => self.revlog_mod_str(),
+            Column::ReviewedAt => self.reviewed_at_str(),
+            Column::ReviewFeedback => self.review_feedback_str(),
+            Column::ReviewTags => self.review_tags_str(),
+            Column::ReviewButton => self.review_button_str(),
+            Column::ReviewLastInterval => self.review_last_interval_str(),
+            Column::ReviewType => self.review_type_str(),
         })
     }
 
@@ -429,10 +526,15 @@ impl RowContext {
     }
 
     fn due_str(&self) -> String {
-        if self.notes_mode {
-            self.note_due_str()
-        } else {
-            self.card_due_str()
+        // FIXME@kaben: Remove.
+        //if self.notes_mode {
+        //    self.note_due_str()
+        //} else {
+        //    self.card_due_str()
+        //}
+        match self.browser_mode {
+            BrowserMode::Notes => self.note_due_str(),
+            _ => self.card_due_str(), // FIXME@kaben: handle 'C' and 'R' cases.
         }
     }
 
@@ -469,43 +571,65 @@ impl RowContext {
     /// Returns the average ease of the non-new cards or a hint if there aren't
     /// any.
     fn ease_str(&self) -> String {
-        let eases: Vec<u16> = self
-            .cards
-            .iter()
-            .filter(|c| c.ctype != CardType::New)
-            .map(|c| c.ease_factor)
-            .collect();
-        if eases.is_empty() {
-            self.tr.browsing_new().into()
-        } else {
-            format!("{}%", eases.iter().sum::<u16>() / eases.len() as u16 / 10)
+        match self.browser_mode {
+            BrowserMode::Cards | BrowserMode::Notes => {
+                let eases: Vec<u16> = self
+                    .cards
+                    .iter()
+                    .filter(|c| c.ctype != CardType::New)
+                    .map(|c| c.ease_factor)
+                    .collect();
+                if eases.is_empty() {
+                    self.tr.browsing_new().into()
+                } else {
+                    format!("{}%", eases.iter().sum::<u16>() / eases.len() as u16 / 10)
+                }
+            }
+            BrowserMode::Reviews => {
+                format!("{}", self.revlog_entries[0].ease_factor)
+            }
         }
     }
 
-    /// Returns the average interval of the review and relearn cards if there
-    /// are any.
+    /// For cards or notes, returns the average interval of the review and
+    /// relearn cards if there are any. Otherwise returns the review
+    /// interval.
     fn interval_str(&self) -> String {
-        if !self.notes_mode {
+        if self.browser_mode == BrowserMode::Cards {
             match self.cards[0].ctype {
                 CardType::New => return self.tr.browsing_new().into(),
                 CardType::Learn => return self.tr.browsing_learning().into(),
                 CardType::Review | CardType::Relearn => (),
             }
         }
-        let intervals: Vec<u32> = self
-            .cards
-            .iter()
-            .filter(|c| matches!(c.ctype, CardType::Review | CardType::Relearn))
-            .map(|c| c.interval)
-            .collect();
-        if intervals.is_empty() {
-            "".into()
-        } else {
-            time_span(
-                (intervals.iter().sum::<u32>() * 86400 / (intervals.len() as u32)) as f32,
-                &self.tr,
-                false,
-            )
+        match self.browser_mode {
+            BrowserMode::Cards | BrowserMode::Notes => {
+                let intervals: Vec<u32> = self
+                    .cards
+                    .iter()
+                    .filter(|c| matches!(c.ctype, CardType::Review | CardType::Relearn))
+                    .map(|c| c.interval)
+                    .collect();
+                if intervals.is_empty() {
+                    "".into()
+                } else {
+                    time_span(
+                        (intervals.iter().sum::<u32>() * 86400 / (intervals.len() as u32)) as f32,
+                        &self.tr,
+                        false,
+                    )
+                }
+            }
+            BrowserMode::Reviews => {
+                let ivl = self.revlog_entries[0].interval;
+                if ivl < 0 {
+                    self.tr
+                        .scheduling_answer_button_time_seconds(-ivl)
+                        .to_string()
+                } else {
+                    self.tr.scheduling_answer_button_time_days(ivl).to_string()
+                }
+            }
         }
     }
 
@@ -519,12 +643,15 @@ impl RowContext {
     }
 
     fn deck_str(&self) -> String {
-        if self.notes_mode {
+        // FIXME@kaben: Remove.
+        //if self.notes_mode {
+        if self.browser_mode == BrowserMode::Notes {
             let decks = self.cards.iter().map(|c| c.deck_id).unique().count();
             if decks > 1 {
                 return format!("({})", decks);
             }
         }
+        // FIXME@kaben: handle 'R' case.
         let deck_name = self.deck.human_name();
         if let Some(original_deck) = &self.original_deck {
             format!("{} ({})", &deck_name, &original_deck.human_name())
@@ -534,8 +661,11 @@ impl RowContext {
     }
 
     fn cards_str(&self) -> Result<String> {
-        Ok(if self.notes_mode {
+        // FIXME@kaben: Remove.
+        //Ok(if self.notes_mode {
+        Ok(if self.browser_mode == BrowserMode::Notes {
             self.cards.len().to_string()
+            // FIXME@kaben: handle 'R' case.
         } else {
             let name = &self.template()?.name;
             match self.notetype.config.kind() {
@@ -543,6 +673,122 @@ impl RowContext {
                 NotetypeKind::Cloze => format!("{} {}", name, self.cards[0].template_idx + 1),
             }
         })
+    }
+
+    /// Note ID number as string
+    fn note_id_str(&self) -> String {
+        format!("{}", self.note.id)
+    }
+
+    /// Card ID number as string
+    fn card_id_str(&self) -> String {
+        format!("{}", self.cards[0].id)
+    }
+
+    /// Revlog ID number as string
+    fn revlog_id_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            format!("{}", self.revlog_entries[0].id)
+        }
+    }
+
+    /// Revlog entry modification time as string
+    fn revlog_mod_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let mtime = self.revlog_entries[0].mtime;
+            if mtime.0 == 0 {
+                "(never)".into()
+            } else {
+                format!("{} @ {}", mtime.date_string(), mtime.time_string(),)
+            }
+        }
+    }
+
+    /// Revlog entry creation time as string
+    fn reviewed_at_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let timestamp_secs = TimestampMillis(self.revlog_entries[0].id.into()).as_secs();
+            format!(
+                "{} @ {}",
+                timestamp_secs.date_string(),
+                timestamp_secs.time_string(),
+            )
+        }
+    }
+
+    /// Revlog entry feedback string
+    fn review_feedback_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            self.revlog_entries[0].feedback.to_string()
+        }
+    }
+
+    /// Revlog entry tags as string
+    fn review_tags_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            self.revlog_entries[0].tags.join(" ")
+        }
+    }
+
+    /// Which button you pushed to score your review
+    fn review_button_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let btn = self.revlog_entries[0].button_chosen;
+            match self.revlog_entries[0].button_chosen {
+                1 => format!("{} ({})", btn, self.tr.studying_again()),
+                2 => format!("{} ({})", btn, self.tr.studying_hard()),
+                3 => format!("{} ({})", btn, self.tr.studying_good()),
+                4 => format!("{} ({})", btn, self.tr.studying_easy()),
+                _ => format!("{}", btn),
+            }
+        }
+    }
+
+    fn review_last_interval_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            let ivl = self.revlog_entries[0].last_interval;
+            if ivl < 0 {
+                self.tr
+                    .scheduling_answer_button_time_seconds(-ivl)
+                    .to_string()
+            } else {
+                self.tr.scheduling_answer_button_time_days(ivl).to_string()
+            }
+        }
+    }
+
+    fn review_type_str(&self) -> String {
+        if self.revlog_entries.is_empty() {
+            "(no reviews yet)".into()
+        } else {
+            match self.revlog_entries[0].review_kind {
+                RevlogReviewKind::Learning => {
+                    self.tr.card_stats_review_log_type_learn().to_string()
+                }
+                RevlogReviewKind::Review => self.tr.card_stats_review_log_type_review().to_string(),
+                RevlogReviewKind::Relearning => {
+                    self.tr.card_stats_review_log_type_relearn().to_string()
+                }
+                RevlogReviewKind::Filtered => {
+                    self.tr.card_stats_review_log_type_filtered().to_string()
+                }
+                RevlogReviewKind::Manual => self.tr.card_stats_review_log_type_manual().to_string(),
+            }
+        }
     }
 
     fn get_row_font_name(&self) -> Result<String> {
@@ -555,12 +801,15 @@ impl RowContext {
 
     fn get_row_color(&self) -> pb::search::browser_row::Color {
         use pb::search::browser_row::Color;
-        if self.notes_mode {
+        // FIXME@kaben: remove.
+        //if self.notes_mode {
+        if self.browser_mode == BrowserMode::Notes {
             if self.note.is_marked() {
                 Color::Marked
             } else {
                 Color::Default
             }
+        // FIXME@kaben: handle 'R' case.
         } else {
             match self.cards[0].flags {
                 1 => Color::FlagRed,

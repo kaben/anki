@@ -14,6 +14,7 @@ use crate::card::CardQueue;
 use crate::card::CardType;
 use crate::collection::Collection;
 use crate::config::StringKey;
+use crate::decks::DeckId;
 use crate::error::Result;
 use crate::prelude::*;
 

@@ -86,9 +86,9 @@ impl HttpSyncClient {
             .post(url)
             .header(&SYNC_HEADER_NAME, serde_json::to_string(&header).unwrap());
         io_monitor
-            .zstd_request_with_timeout(request, data, Duration::from_secs(30))
+            .zstd_request_with_timeout(request, data, Duration::from_secs(3600))
             .await
-            .map(SyncResponse::from_vec)
+            .map(|data| SyncResponse::from_vec_with_server_version(data.buf, data.server_version))
     }
 
     #[cfg(test)]

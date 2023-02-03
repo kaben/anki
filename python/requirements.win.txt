@@ -14,6 +14,14 @@ pywin32==305 \
     --hash=sha256:9dd98384da775afa009bc04863426cb30596fd78c6f8e4e2e5bbf4edf8029504 \
     --hash=sha256:a55db448124d1c1484df22fa8bbcbc45c64da5e6eae74ab095b9ea62e6d00496
     # via -r requirements.win.in
+pywinpty==2.0.10 \
+    --hash=sha256:38cb924f2778b5751ef91a75febd114776b3af0ae411bc667be45dd84fc881d3 \
+    --hash=sha256:3c46aef80dd50979aff93de199e4a00a8ee033ba7a03cadf0a91fed45f0c39d7 \
+    --hash=sha256:4c7d06ad10f6e92bc850a467f26d98f4f30e73d2fe5926536308c6ae0566bc16 \
+    --hash=sha256:7ffbd66310b83e42028fc9df7746118978d94fba8c1ebf15a7c1275fdd80b28a \
+    --hash=sha256:902d79444b29ad1833b8d5c3c9aabdfd428f4f068504430df18074007c8c0de8 \
+    --hash=sha256:cdbb5694cf8c7242c2ecfaca35c545d31fa5d5814c3d67a4e628f803f680ebea
+    # via -r requirements.win.in
 winrt==1.0.21033.1 \
     --hash=sha256:224e13eb172435aaabdc7066752898a61dae0fcc3022f6f8cbd1ce953be3358c \
     --hash=sha256:9d7b7d2e48c301855afd3280aaf51ea0d3c683450f46de2db813f71ee1cd5937 \

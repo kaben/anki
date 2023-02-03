@@ -28,6 +28,7 @@ pub use crate::ops::Op;
 pub use crate::ops::OpChanges;
 pub use crate::ops::OpOutput;
 pub use crate::require;
+pub use crate::revlog::RevlogEntry;
 pub use crate::revlog::RevlogId;
 pub use crate::search::SearchBuilder;
 pub use crate::search::TryIntoSearch;

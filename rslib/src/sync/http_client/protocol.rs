@@ -7,7 +7,9 @@ use crate::prelude::TimestampMillis;
 use crate::sync::collection::changes::ApplyChangesRequest;
 use crate::sync::collection::changes::UnchunkedChanges;
 use crate::sync::collection::chunks::ApplyChunkRequest;
+use crate::sync::collection::chunks::ApplyExtendedChunkRequest;
 use crate::sync::collection::chunks::Chunk;
+use crate::sync::collection::chunks::ExtendedChunk;
 use crate::sync::collection::graves::ApplyGravesRequest;
 use crate::sync::collection::graves::Graves;
 use crate::sync::collection::meta::MetaRequest;
@@ -71,11 +73,25 @@ impl SyncProtocol for HttpSyncClient {
         self.request(SyncMethod::Chunk, req).await
     }
 
+    async fn extended_chunk(
+        &self,
+        req: SyncRequest<EmptyInput>,
+    ) -> HttpResult<SyncResponse<ExtendedChunk>> {
+        self.request(SyncMethod::ExtendedChunk, req).await
+    }
+
     async fn apply_chunk(
         &self,
         req: SyncRequest<ApplyChunkRequest>,
     ) -> HttpResult<SyncResponse<()>> {
         self.request(SyncMethod::ApplyChunk, req).await
+    }
+
+    async fn apply_extended_chunk(
+        &self,
+        req: SyncRequest<ApplyExtendedChunkRequest>,
+    ) -> HttpResult<SyncResponse<()>> {
+        self.request(SyncMethod::ApplyExtendedChunk, req).await
     }
 
     async fn sanity_check(

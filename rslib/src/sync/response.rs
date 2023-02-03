@@ -4,7 +4,10 @@
 use std::marker::PhantomData;
 
 use axum::body::StreamBody;
+use axum::headers::HeaderMap;
 use axum::headers::HeaderName;
+use axum::headers::HeaderValue;
+use axum::http::header::SERVER;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use serde::de::DeserializeOwned;
@@ -16,8 +19,16 @@ use crate::sync::error::HttpResult;
 use crate::sync::error::OrHttpErr;
 use crate::sync::request::header_and_stream::encode_zstd_body;
 use crate::sync::version::SyncVersion;
+use crate::version::sync_server_version;
+use crate::version::VersionInfo;
 
 pub static ORIGINAL_SIZE: HeaderName = HeaderName::from_static("anki-original-size");
+
+#[derive(Debug)]
+pub struct DataWithServerInfo {
+    pub buf: Vec<u8>,
+    pub server_version: Option<VersionInfo>,
+}
 
 /// Stores the data returned from a sync request, and the type
 /// it represents. Given a SyncResponse<Foo>, you can get a Foo
@@ -25,22 +36,39 @@ pub static ORIGINAL_SIZE: HeaderName = HeaderName::from_static("anki-original-si
 #[derive(Debug)]
 pub struct SyncResponse<T> {
     pub data: Vec<u8>,
+    pub server_version: Option<VersionInfo>,
     json_output_type: PhantomData<T>,
 }
 
 impl<T> SyncResponse<T> {
     pub fn from_vec(data: Vec<u8>) -> SyncResponse<T> {
+        SyncResponse::from_vec_with_server_version(data, None)
+    }
+
+    pub fn from_vec_with_server_version(
+        data: Vec<u8>,
+        server_version: Option<VersionInfo>,
+    ) -> SyncResponse<T> {
         SyncResponse {
             data,
+            server_version,
             json_output_type: Default::default(),
         }
     }
 
     pub fn make_response(self, sync_version: SyncVersion) -> Response {
         if sync_version.is_zstd() {
-            let header = (&ORIGINAL_SIZE, self.data.len().to_string());
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                &ORIGINAL_SIZE,
+                self.data.len().to_string().parse::<HeaderValue>().unwrap(),
+            );
+            headers.insert(
+                SERVER,
+                HeaderValue::from_str(sync_server_version()).unwrap(),
+            );
             let body = StreamBody::new(encode_zstd_body(self.data));
-            ([header], body).into_response()
+            (headers, body).into_response()
         } else {
             self.data.into_response()
         }

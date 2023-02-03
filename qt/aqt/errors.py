@@ -182,6 +182,12 @@ class ErrorHandler(QObject):
         # and update timer
         self.setTimer()
 
+    def flush(self) -> None:
+        sys.stdout.flush()
+
+    def fileno(self) -> int:
+        return sys.stdout.fileno()
+
     def setTimer(self) -> None:
         # we can't create a timer from a different thread, so we post a
         # message to the object on the main thread

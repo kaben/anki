@@ -755,7 +755,7 @@ limit ?"""
 
         def log() -> None:
             self.col.db.execute(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)",
+                "insert into revlog (id,cid,usn,ease,ivl,lastIvl,factor,time,type) values (?,?,?,?,?,?,?,?,?)",
                 int(time.time() * 1000),
                 card.id,
                 self.col.usn(),
@@ -888,7 +888,7 @@ limit ?"""
     def _logRev(self, card: Card, ease: int, delay: int, type: int) -> None:
         def log() -> None:
             self.col.db.execute(
-                "insert into revlog values (?,?,?,?,?,?,?,?,?)",
+                "insert into revlog (id,cid,usn,ease,ivl,lastIvl,factor,time,type) values (?,?,?,?,?,?,?,?,?)",
                 int(time.time() * 1000),
                 card.id,
                 self.col.usn(),
