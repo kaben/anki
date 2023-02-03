@@ -1152,9 +1152,9 @@ title="{}" {}>{}</button>""".format(
         self.ipy.worker.shouldexit = True
         self.ipy.kernel_thread.wait(100)
         self.ipy.close()
-        #self.ipy.iopub_thread.close()
+        # self.ipy.iopub_thread.close()
         self.ipy.iopub_thread.thread.join(100)
-        #self.ipy.kernel_thread.wait(100)
+        # self.ipy.kernel_thread.wait(100)
 
     # App exit
     ##########################################################################

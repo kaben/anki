@@ -93,13 +93,11 @@ def start_ipython_kernel(stdout, stderr):
                 sys._ipython_kernel_running = True
                 while True:
                     if self.shouldexit:
-                        #self.ipy_kernel_app.close()
+                        # self.ipy_kernel_app.close()
                         sys._ipython_kernel_running = False
                         return
                     if self.ipy_kernel_app.kernel.shell.exit_now:
-                        log.debug(
-                            "IPython kernel stopping (%s)", self.connection_file
-                        )
+                        log.debug("IPython kernel stopping (%s)", self.connection_file)
                         sys._ipython_kernel_running = False
                         return
                     try:
@@ -110,7 +108,7 @@ def start_ipython_kernel(stdout, stderr):
                         with PushStdout(ipy_stdout, ipy_stderr):
                             self.run_once()
                         QThread.msleep(25)
-                        #if QThread.currentThread.isInterruptionRequested():
+                        # if QThread.currentThread.isInterruptionRequested():
                         #    return
                     except:
                         log.error("Error polling Jupyter loop", exc_info=True)
