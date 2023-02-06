@@ -586,7 +586,7 @@ impl RowContext {
                 }
             }
             BrowserMode::Reviews => {
-                format!("{}", self.revlog_entries[0].ease_factor)
+                format!("{}", self.revlog_entries.last().unwrap().ease_factor)
             }
         }
     }
@@ -621,7 +621,7 @@ impl RowContext {
                 }
             }
             BrowserMode::Reviews => {
-                let ivl = self.revlog_entries[0].interval;
+                let ivl = self.revlog_entries.last().unwrap().interval;
                 if ivl < 0 {
                     self.tr
                         .scheduling_answer_button_time_seconds(-ivl)
@@ -690,7 +690,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            format!("{}", self.revlog_entries[0].id)
+            format!("{}", self.revlog_entries.last().unwrap().id)
         }
     }
 
@@ -699,7 +699,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            let mtime = self.revlog_entries[0].mtime;
+            let mtime = self.revlog_entries.last().unwrap().mtime;
             if mtime.0 == 0 {
                 "(never)".into()
             } else {
@@ -713,7 +713,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            let timestamp_secs = TimestampMillis(self.revlog_entries[0].id.into()).as_secs();
+            let timestamp_secs = TimestampMillis(self.revlog_entries.last().unwrap().id.into()).as_secs();
             format!(
                 "{} @ {}",
                 timestamp_secs.date_string(),
@@ -727,7 +727,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            self.revlog_entries[0].feedback.to_string()
+            self.revlog_entries.last().unwrap().feedback.to_string()
         }
     }
 
@@ -736,7 +736,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            self.revlog_entries[0].tags.join(" ")
+            self.revlog_entries.last().unwrap().tags.join(" ")
         }
     }
 
@@ -745,8 +745,8 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            let btn = self.revlog_entries[0].button_chosen;
-            match self.revlog_entries[0].button_chosen {
+            let btn = self.revlog_entries.last().unwrap().button_chosen;
+            match btn {
                 1 => format!("{} ({})", btn, self.tr.studying_again()),
                 2 => format!("{} ({})", btn, self.tr.studying_hard()),
                 3 => format!("{} ({})", btn, self.tr.studying_good()),
@@ -760,7 +760,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            let ivl = self.revlog_entries[0].last_interval;
+            let ivl = self.revlog_entries.last().unwrap().last_interval;
             if ivl < 0 {
                 self.tr
                     .scheduling_answer_button_time_seconds(-ivl)
@@ -775,7 +775,7 @@ impl RowContext {
         if self.revlog_entries.is_empty() {
             "(no reviews yet)".into()
         } else {
-            match self.revlog_entries[0].review_kind {
+            match self.revlog_entries.last().unwrap().review_kind {
                 RevlogReviewKind::Learning => {
                     self.tr.card_stats_review_log_type_learn().to_string()
                 }
