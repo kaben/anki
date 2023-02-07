@@ -1,6 +1,7 @@
 -r requirements.bundle.txt
 
-black
+astroid==2.13.2
+black==22.12.0
 compare-locales
 isort
 mock
@@ -24,8 +25,12 @@ types-waitress
 atomicwrites
 colorama
 
+dash_bio
+flask
 jsonschema[format-nongpl]==4.17.3
-jupyter_existing_provisioner
+jupyter_existing_provisioner @ https://github.com/kaben/jupyter_existing_provisioner/archive/8c8facab50c1e7ab72a354b0dffe6c3d136d5e6e.zip
+jupyter_dash
 jupyterlab
 scipy
 seaborn
+sympy
