@@ -398,7 +398,7 @@ fn card_order_from_sort_column(column: Column) -> Cow<'static, str> {
         Column::CardId => "c.id asc".into(),
         Column::RevlogId => "c.id asc".into(),
         Column::RevlogMod => "c.id asc".into(),
-        Column::ReviewedAt => "c.id asc".into(),
+        Column::ReviewedAt => "(select pos from sort_order where cid = c.id) asc".into(),
         Column::ReviewFeedback => "c.id asc".into(),
         Column::ReviewTags => "c.id asc".into(),
         Column::ReviewButton => "c.id asc".into(),
@@ -416,7 +416,8 @@ fn note_order_from_sort_column(column: Column) -> Cow<'static, str> {
         | Column::Ease
         | Column::Interval
         | Column::Lapses
-        | Column::Reps => "(select pos from sort_order where nid = n.id) asc".into(),
+        | Column::Reps
+        | Column::ReviewedAt => "(select pos from sort_order where nid = n.id) asc".into(),
         Column::NoteCreation => "n.id asc".into(),
         Column::NoteMod => "n.mod asc".into(),
         Column::Notetype => "(select pos from sort_order where ntid = n.mid) asc".into(),
@@ -449,6 +450,7 @@ fn prepare_sort(col: &mut Collection, column: Column, item_type: ReturnItemType)
             Column::Cards => include_str!("template_order.sql"),
             Column::Deck => include_str!("deck_order.sql"),
             Column::Notetype => include_str!("notetype_order.sql"),
+            Column::ReviewedAt => include_str!("card_reviewed_at_order.sql"),
             _ => return Ok(()),
         },
         ReturnItemType::Notes => match column {
@@ -461,6 +463,7 @@ fn prepare_sort(col: &mut Collection, column: Column, item_type: ReturnItemType)
             Column::Lapses => include_str!("note_lapses_order.sql"),
             Column::Reps => include_str!("note_reps_order.sql"),
             Column::Notetype => include_str!("notetype_order.sql"),
+            Column::ReviewedAt => include_str!("note_reviewed_at_order.sql"),
             _ => return Ok(()),
         },
         // FIXME@kaben: handle case below.
