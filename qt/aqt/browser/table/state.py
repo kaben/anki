@@ -222,9 +222,9 @@ class CardState(ItemState):
         return self.get_card(item).note()
 
     def get_review(self, item: ItemId) -> RevlogEntry:
-        """Get first review of card."""
+        """Get most recent review of card."""
         if rids := self.get_review_ids([item]):
-            return self.col.get_revlog_entry(rids[0])
+            return self.col.get_revlog_entry(rids[-1])
         return None
 
     def find_items(
@@ -285,9 +285,9 @@ class NoteState(ItemState):
         return self.col.get_note(NoteId(item))
 
     def get_review(self, item: ItemId) -> RevlogEntry:
-        """Get first review of note."""
+        """Get most recent review of note."""
         if rids := self.get_review_ids([item]):
-            return self.col.get_revlog_entry(rids[0])
+            return self.col.get_revlog_entry(rids[-1])
         return None
 
     def find_items(
