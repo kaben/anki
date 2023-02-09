@@ -13,14 +13,14 @@
 # FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more
 # details.
 """
-Add-on for Anki 2.1: Random Seed Fields
+Add-on for Anki 2.1: Randomizer
 
 Supplies a pair of fields:
 
-- {{randseed-LastSuccessfulRevlogId:}} -- ID of last review for which user
+- {{randomizer-LastSuccessfulRevlogId:}} -- ID of last review for which user
 clicked a 'success' button, e.g. 4 (easy), 3 (good), or 2 (hard), or "" if no
 such review exists yet.
-- {{randseed-Seed:}} -- The review ID above if it exists, otherwise the card ID.
+- {{randomizer-Index:}} -- The review ID above if it exists, otherwise the card ID.
 
 The purpose is presenting math problems with randomized parameters. The idea is
 that the same math problem will be presented each time the card is reviewed,
@@ -48,13 +48,13 @@ def get_config(arg, fail=False):
 def on_field_filter(
     text: str, field: str, filter: str, context: TemplateRenderContext
 ) -> str:
-    if not filter.startswith("randseed-"):
+    if not filter.startswith("randomizer-"):
         return text
 
     # generate fields if not yet generated
-    if "randseed_fields" not in context.extra_state:
-        context.extra_state["randseed_fields"] = get_all_fields(context)
-    rseed_fields: Dict[str, Any] = context.extra_state["randseed_fields"]
+    if "randomizer_fields" not in context.extra_state:
+        context.extra_state["randomizer_fields"] = get_all_fields(context)
+    rseed_fields: Dict[str, Any] = context.extra_state["randomizer_fields"]
 
     # extract the requested field
     rseed, field = filter.split("-", maxsplit=1)
@@ -84,9 +84,9 @@ def get_all_fields(context: TemplateRenderContext) -> Dict[str, Any]:
     # If such a review was found, use its ID as the random seed.
     # Otherwise, use the card ID.
     rid = rids[0] if rids else ""
-    seed = rid or card.id
+    index = rid or card.id
 
     fields["LastSuccessfulRevlogId"] = rid
-    fields["Seed"] = seed
+    fields["Index"] = index
 
     return fields
