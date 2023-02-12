@@ -93,13 +93,15 @@ def start_ipython_kernel(stdout, stderr):
                 sys._ipython_kernel_running = True
                 while True:
                     if self.shouldexit:
-                        # self.ipy_kernel_app.close()
+                        #self.ipy_kernel_app.close()
+                        #print("IPython kernel stop requested outside of IPython (%s)", self.ipy_kernel_app.connection_file)
                         sys._ipython_kernel_running = False
                         return
                     if self.ipy_kernel_app.kernel.shell.exit_now:
-                        log.debug("IPython kernel stopping (%s)", self.connection_file)
+                        #print("IPython kernel stop requested within IPython (%s)", self.ipy_kernel_app.connection_file)
                         sys._ipython_kernel_running = False
                         return
+                        #log.debug("Ignoring IPython kernel stop request")
                     try:
                         # Use the IPython stdout/stderr while running the kernel.
                         # Without this, stdout/stderr print to the console from
@@ -111,7 +113,9 @@ def start_ipython_kernel(stdout, stderr):
                         # if QThread.currentThread.isInterruptionRequested():
                         #    return
                     except:
-                        log.error("Error polling Jupyter loop", exc_info=True)
+                        #print("Error polling Jupyter loop", exc_info=True)
+                        pass
+                print("Leaving Worker run loop.")
 
         self.aloop = asyncio.get_event_loop()
         self.kernel_thread = QThread()
